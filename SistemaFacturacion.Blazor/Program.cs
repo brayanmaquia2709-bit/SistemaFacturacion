@@ -6,7 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5145/";
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://sistemafacturacion-oh2n.onrender.com/";
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 builder.Services.AddScoped<SistemaFacturacion.Blazor.Services.FacturacionApiService>();
 

@@ -20,7 +20,7 @@ namespace SistemaFacturacion.Maui.Services
 
         public static string GetConfiguredBaseUrl()
         {
-            string defaultUrl = DeviceInfo.Platform == DevicePlatform.Android ? "http://10.0.2.2:5145/" : "http://localhost:5145/";
+            string defaultUrl = "https://sistemafacturacion-oh2n.onrender.com/";
             string savedUrl = Preferences.Get("ServerApiUrl", defaultUrl);
             if (!savedUrl.EndsWith("/")) savedUrl += "/";
             if (!savedUrl.StartsWith("http://") && !savedUrl.StartsWith("https://")) savedUrl = "http://" + savedUrl;
