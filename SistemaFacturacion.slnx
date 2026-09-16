@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SistemaFacturacion.API/SistemaFacturacion.API.csproj" />
+  <Project Path="SistemaFacturacion.Blazor/SistemaFacturacion.Blazor.csproj" />
+  <Project Path="SistemaFacturacion.Core/SistemaFacturacion.Core.csproj" />
+  <Project Path="SistemaFacturacion.Maui/SistemaFacturacion.Maui.csproj" />
+</Solution>

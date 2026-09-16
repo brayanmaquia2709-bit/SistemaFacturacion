@@ -1,0 +1,600 @@
+@page "/nueva-factura"
+@page "/pos"
+@rendermode InteractiveServer
+@using SistemaFacturacion.Core.DTOs
+@using SistemaFacturacion.Core.Entities
+@using SistemaFacturacion.Blazor.Services
+@inject FacturacionApiService ApiService
+@inject NavigationManager NavManager
+
+<PageTitle>Nueva Factura POS | Facturación Electrónica</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">⚡ Terminal POS - Generar Factura</h2>
+            <p class="text-muted mb-0">Selecciona cliente, agrega productos al carrito y procesa el pago.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold text-dark small">👤 Vendedor:</span>
+            <select class="form-select form-select-sm text-dark bg-white border border-indigo fw-bold" @bind="usuarioSeleccionadoId" style="width: 230px;">
+                @foreach (var u in usuarios)
+                {
+                    <option value="@u.Id">@u.Nombre (@u.Rol)</option>
+                }
+            </select>
+            <button class="btn btn-outline-secondary" @onclick="CargarDatosAsync">
+                🔄 Cargar Datos
+            </button>
+            <a href="facturas" class="btn btn-outline-primary">
+                📄 Facturas
+            </a>
+        </div>
+    </div>
+
+    @if (mensaje != null)
+    {
+        <div class="alert alert-@tipoAlerta alert-dismissible fade show shadow-sm mb-4" role="alert">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="() => mensaje = null"></button>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-indigo" role="status"></div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <!-- Left Column: Customer, Products & Payment Options -->
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="fw-bold text-dark mb-0">1. Seleccionar Cliente</h5>
+                            <button class="btn btn-sm btn-indigo" @onclick="AbrirModalCliente">
+                                ➕ Nuevo Cliente
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <select class="form-select form-select-lg mb-2 text-dark bg-light border" @bind="clienteSeleccionadoId">
+                            <option value="0">-- Selecciona un Cliente --</option>
+                            @foreach (var c in clientes)
+                            {
+                                <option value="@c.Id">@c.Nombre (@c.DocumentoIdentidad) - @c.Email</option>
+                            }
+                        </select>
+
+                        @if (ClienteActual != null)
+                        {
+                            <div class="p-3 bg-light rounded-3 text-secondary small mt-2">
+                                <div><strong>Email:</strong> @ClienteActual.Email | <strong>Teléfono:</strong> @ClienteActual.Telefono</div>
+                                <div><strong>Dirección:</strong> @ClienteActual.Direccion</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="fw-bold text-dark mb-0">2. Agregar Productos</h5>
+                            <button class="btn btn-sm btn-success" @onclick="AbrirModalProducto">
+                                ➕ Nuevo Producto
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-2">
+                            <div class="col-md-7">
+                                <label class="form-label fw-semibold text-dark">Producto</label>
+                                <select class="form-select text-dark bg-light border" @bind="productoSeleccionadoId">
+                                    <option value="0">-- Selecciona Producto --</option>
+                                    @foreach (var p in productos)
+                                    {
+                                        <option value="@p.Id">@p.Nombre - $@p.Precio.ToString("N2") (Stock: @p.Stock)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold text-dark">Cantidad</label>
+                                <input type="number" class="form-control text-dark bg-light border" min="1" @bind="cantidadInput" />
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-success w-100 fw-bold" @onclick="AgregarAlCarrito">
+                                    ➕ Agregar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                        <h5 class="fw-bold text-dark mb-0">3. Condiciones de Pago & Descuento</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold text-dark">Forma de Pago</label>
+                                <select class="form-select text-dark bg-light border" @bind="formaPago">
+                                    <option value="Efectivo">💵 Efectivo</option>
+                                    <option value="TarjetaCredito">💳 Tarjeta de Crédito</option>
+                                    <option value="TarjetaDebito">💳 Tarjeta de Débito</option>
+                                    <option value="Transferencia">🏦 Transferencia Bancaria</option>
+                                    <option value="Credito">📅 Crédito (30 días)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold text-dark">Descuento (%)</label>
+                                <input type="number" class="form-control text-dark bg-light border" min="0" max="100" @bind="descuentoPorcentaje" @bind:after="RecalcularTotales" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Shopping Cart & Checkout Summary -->
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm rounded-4 sticky-top" style="top: 20px;">
+                    <div class="card-header bg-indigo text-white p-4 rounded-top-4">
+                        <h5 class="fw-bold mb-0">🛒 Carrito de Compras</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        @if (!carrito.Any())
+                        {
+                            <div class="text-center py-5 text-muted">
+                                <i class="bi bi-cart-x fs-1"></i>
+                                <p class="mt-2">El carrito está vacío.<br />Selecciona productos a la izquierda.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive mb-3" style="max-height: 250px;">
+                                <table class="table table-sm align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-center">Cant.</th>
+                                            <th class="text-end">Subtotal</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in carrito)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-bold text-dark">@item.ProductoNombre</div>
+                                                    <small class="text-muted">$@item.PrecioUnitario.ToString("N2") c/u</small>
+                                                </td>
+                                                <td class="text-center fw-semibold">x@item.Cantidad</td>
+                                                <td class="text-end fw-bold text-success">$@item.Subtotal.ToString("N2")</td>
+                                                <td class="text-end">
+                                                    <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => EliminarDelCarrito(item)">❌</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <hr />
+
+                            <div class="bg-light p-3 rounded-3 mb-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Subtotal Bruto:</span>
+                                    <span class="fw-semibold text-dark">$@subtotalBruto.ToString("N2")</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2 text-danger">
+                                    <span>Descuento (@descuentoPorcentaje%):</span>
+                                    <span>-$@montoDescuento.ToString("N2")</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">IVA (19%):</span>
+                                    <span class="fw-semibold text-dark">$@montoImpuesto.ToString("N2")</span>
+                                </div>
+                                <hr />
+                                <div class="d-flex justify-content-between fs-4 fw-bold text-indigo">
+                                    <span>TOTAL FACTURA:</span>
+                                    <span>$@totalFactura.ToString("N2")</span>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-indigo btn-lg w-100 fw-bold py-3 shadow" @onclick="GenerarFactura" disabled="@procesando">
+                                @if (procesando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Procesando Pago...</span>
+                                }
+                                else
+                                {
+                                    <span>🚀 Procesar Pago y Emitir Factura</span>
+                                }
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@* Modal Flotante Nuevo Cliente *@
+@if (mostrarModalCliente)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1050;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+                <div class="modal-header bg-indigo text-white">
+                    <h5 class="modal-title fw-bold">➕ Registrar Nuevo Cliente</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalCliente = false"></button>
+                </div>
+                <div class="modal-body p-4 bg-white text-dark">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Nombre / Razón Social *</label>
+                        <input type="text" class="form-control text-dark bg-light border" @bind="nuevoCliente.Nombre" placeholder="Ej: Maria López" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">NIT / Documento Identidad *</label>
+                        <input type="text" class="form-control text-dark bg-light border" @bind="nuevoCliente.DocumentoIdentidad" placeholder="Ej: 987654321" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Correo Electrónico *</label>
+                        <input type="email" class="form-control text-dark bg-light border" @bind="nuevoCliente.Email" placeholder="maria@correo.com" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Teléfono</label>
+                        <input type="text" class="form-control text-dark bg-light border" @bind="nuevoCliente.Telefono" placeholder="300-111-2222" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Dirección Fiscal</label>
+                        <input type="text" class="form-control text-dark bg-light border" @bind="nuevoCliente.Direccion" placeholder="Av Principal #10-20" />
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 pt-3">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" @onclick="() => mostrarModalCliente = false">Cancelar</button>
+                        <button type="button" class="btn btn-indigo px-4 fw-bold" @onclick="GuardarCliente">💾 Guardar Cliente</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Modal Flotante Nuevo Producto *@
+@if (mostrarModalProducto)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1050;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold">➕ Registrar Nuevo Producto</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalProducto = false"></button>
+                </div>
+                <div class="modal-body p-4 bg-white text-dark">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Código de Barras / SKU *</label>
+                        <input type="text" class="form-control text-dark bg-light border" @bind="nuevoProducto.CodigoBarra" placeholder="Ej: PROD-99" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Nombre del Producto *</label>
+                        <input type="text" class="form-control text-dark bg-light border" @bind="nuevoProducto.Nombre" placeholder="Ej: Teclado Mecánico RGB" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark">Categoría</label>
+                        <input type="text" class="form-control text-dark bg-light border" @bind="nuevoProducto.Categoria" placeholder="Ej: Periféricos" />
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-dark">Precio ($) *</label>
+                            <input type="number" class="form-control text-dark bg-light border" @bind="nuevoProducto.Precio" step="0.01" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-dark">Stock Inicial *</label>
+                            <input type="number" class="form-control text-dark bg-light border" @bind="nuevoProducto.Stock" />
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 pt-3">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" @onclick="() => mostrarModalProducto = false">Cancelar</button>
+                        <button type="button" class="btn btn-success px-4 fw-bold" @onclick="GuardarProducto">💾 Guardar Producto</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Modal Factura Generada con Éxito *@
+@if (facturaGenerada != null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7); z-index: 1060;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg text-center p-4">
+                <div class="modal-body">
+                    <div class="display-1 text-success mb-2">🎉</div>
+                    <h3 class="fw-bold text-dark">¡Factura Emitida con Éxito!</h3>
+                    <p class="text-muted fs-5">Factura <strong>#@facturaGenerada.NumeroFactura</strong></p>
+                    <div class="p-3 bg-light rounded-3 my-3">
+                        <div class="fs-3 fw-bold text-indigo">$@facturaGenerada.Total.ToString("N2")</div>
+                        <small class="text-muted">Forma de Pago: @facturaGenerada.FormaPago</small>
+                    </div>
+
+                    <div class="d-grid gap-2 col-11 mx-auto my-4">
+                        <a href="http://localhost:5145/api/Facturas/@facturaGenerada.Id/pdf" target="_blank" class="btn btn-danger btn-lg fw-bold">
+                            📥 Descargar PDF de Factura
+                        </a>
+                        <a href="https://wa.me/@(facturaGenerada.Cliente?.Telefono)?text=Hola%20@(Uri.EscapeDataString(facturaGenerada.Cliente?.Nombre ?? "")),%20adjunto%20factura%20%23@(facturaGenerada.NumeroFactura)%20por%20$@(facturaGenerada.Total.ToString("N2")).%20PDF%3A%20http%3A%2F%2Flocalhost%3A5145%2Fapi%2FFacturas%2F@(facturaGenerada.Id)%2Fpdf" target="_blank" class="btn btn-success fw-bold">
+                            📲 Enviar por WhatsApp
+                        </a>
+                    </div>
+
+                    <button class="btn btn-indigo px-5 btn-lg rounded-pill fw-bold" @onclick="FinalizarVenta">
+                        ✨ Realizar Otra Venta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool cargando = true;
+    private bool procesando = false;
+    private string? mensaje;
+    private string tipoAlerta = "info";
+
+    private List<Cliente> clientes = new();
+    private List<Producto> productos = new();
+    private List<Usuario> usuarios = new();
+
+    private int clienteSeleccionadoId = 0;
+    private int productoSeleccionadoId = 0;
+    private int usuarioSeleccionadoId = 0;
+    private int cantidadInput = 1;
+    private string formaPago = "Efectivo";
+    private decimal descuentoPorcentaje = 0;
+
+    private List<CarritoItemModel> carrito = new();
+    private decimal subtotalBruto => carrito.Sum(i => i.Subtotal);
+    private decimal montoDescuento => subtotalBruto * (descuentoPorcentaje / 100m);
+    private decimal subtotalNeto => subtotalBruto - montoDescuento;
+    private decimal montoImpuesto => subtotalNeto * 0.19m;
+    private decimal totalFactura => subtotalNeto + montoImpuesto;
+
+    private Cliente? ClienteActual => clientes.FirstOrDefault(c => c.Id == clienteSeleccionadoId);
+
+    // Modales
+    private bool mostrarModalCliente = false;
+    private Cliente nuevoCliente = new();
+
+    private bool mostrarModalProducto = false;
+    private Producto nuevoProducto = new();
+
+    private Factura? facturaGenerada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosAsync();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        cargando = true;
+        try
+        {
+            clientes = await ApiService.GetClientesAsync();
+            productos = await ApiService.GetProductosAsync();
+            usuarios = await ApiService.GetUsuariosAsync();
+
+            if (clientes.Any() && clienteSeleccionadoId == 0)
+                clienteSeleccionadoId = clientes.First().Id;
+
+            if (productos.Any() && productoSeleccionadoId == 0)
+                productoSeleccionadoId = productos.First().Id;
+
+            if (usuarios.Any() && usuarioSeleccionadoId == 0)
+                usuarioSeleccionadoId = usuarios.First().Id;
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"Error al cargar datos de la API: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void RecalcularTotales() { StateHasChanged(); }
+
+    private void AgregarAlCarrito()
+    {
+        var prod = productos.FirstOrDefault(p => p.Id == productoSeleccionadoId);
+        if (prod == null)
+        {
+            mensaje = "Por favor selecciona un producto válido.";
+            tipoAlerta = "warning";
+            return;
+        }
+
+        if (cantidadInput <= 0)
+        {
+            mensaje = "La cantidad debe ser mayor a 0.";
+            tipoAlerta = "warning";
+            return;
+        }
+
+        if (prod.Stock < cantidadInput)
+        {
+            mensaje = $"Stock insuficiente. Solo quedan {prod.Stock} unidades de '{prod.Nombre}'.";
+            tipoAlerta = "warning";
+            return;
+        }
+
+        var existente = carrito.FirstOrDefault(c => c.ProductoId == prod.Id);
+        if (existente != null)
+        {
+            if (prod.Stock < existente.Cantidad + cantidadInput)
+            {
+                mensaje = $"No hay suficiente stock para agregar {cantidadInput} más. Stock total: {prod.Stock}.";
+                tipoAlerta = "warning";
+                return;
+            }
+            existente.Cantidad += cantidadInput;
+        }
+        else
+        {
+            carrito.Add(new CarritoItemModel
+            {
+                ProductoId = prod.Id,
+                ProductoNombre = prod.Nombre,
+                Cantidad = cantidadInput,
+                PrecioUnitario = prod.Precio
+            });
+        }
+
+        mensaje = null;
+        cantidadInput = 1;
+    }
+
+    private void EliminarDelCarrito(CarritoItemModel item)
+    {
+        carrito.Remove(item);
+    }
+
+    private async Task GenerarFactura()
+    {
+        if (clienteSeleccionadoId <= 0)
+        {
+            mensaje = "Debes seleccionar un cliente para generar la factura.";
+            tipoAlerta = "warning";
+            return;
+        }
+
+        if (!carrito.Any())
+        {
+            mensaje = "El carrito de ventas está vacío.";
+            tipoAlerta = "warning";
+            return;
+        }
+
+        procesando = true;
+        mensaje = null;
+
+        try
+        {
+            var dto = new FacturaCreateDto
+            {
+                ClienteId = clienteSeleccionadoId,
+                UsuarioId = usuarioSeleccionadoId,
+                ImpuestoId = 1,
+                FormaPago = formaPago,
+                DescuentoPorcentaje = descuentoPorcentaje,
+                Notas = "Emitida desde Terminal Web POS",
+                Detalles = carrito.Select(c => new DetalleFacturaCreateDto
+                {
+                    ProductoId = c.ProductoId,
+                    Cantidad = c.Cantidad
+                }).ToList()
+            };
+
+            var f = await ApiService.GenerarFacturaAsync(dto);
+            if (f != null)
+            {
+                facturaGenerada = f;
+            }
+            else
+            {
+                mensaje = "No se pudo generar la factura. Revisa la conexión con el servidor.";
+                tipoAlerta = "danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"Error al procesar el pago: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task FinalizarVenta()
+    {
+        facturaGenerada = null;
+        carrito.Clear();
+        descuentoPorcentaje = 0;
+        await CargarDatosAsync();
+    }
+
+    // Modal Cliente
+    private void AbrirModalCliente()
+    {
+        nuevoCliente = new Cliente();
+        mostrarModalCliente = true;
+    }
+
+    private async Task GuardarCliente()
+    {
+        if (string.IsNullOrWhiteSpace(nuevoCliente.Nombre) ||
+            string.IsNullOrWhiteSpace(nuevoCliente.DocumentoIdentidad) ||
+            string.IsNullOrWhiteSpace(nuevoCliente.Email))
+        {
+            mensaje = "Completa los campos obligatorios (*) del cliente.";
+            tipoAlerta = "warning";
+            return;
+        }
+
+        var creado = await ApiService.CrearClienteAsync(nuevoCliente);
+        if (creado != null)
+        {
+            mostrarModalCliente = false;
+            await CargarDatosAsync();
+            clienteSeleccionadoId = creado.Id;
+            mensaje = $"Cliente '{creado.Nombre}' registrado exitosamente.";
+            tipoAlerta = "success";
+        }
+    }
+
+    // Modal Producto
+    private void AbrirModalProducto()
+    {
+        nuevoProducto = new Producto { Precio = 0, Stock = 10, CodigoBarra = $"PROD-{Random.Shared.Next(100, 999)}" };
+        mostrarModalProducto = true;
+    }
+
+    private async Task GuardarProducto()
+    {
+        if (string.IsNullOrWhiteSpace(nuevoProducto.Nombre) || nuevoProducto.Precio <= 0)
+        {
+            mensaje = "Ingresa un nombre y precio válido para el producto.";
+            tipoAlerta = "warning";
+            return;
+        }
+
+        var creado = await ApiService.CrearProductoAsync(nuevoProducto);
+        if (creado != null)
+        {
+            mostrarModalProducto = false;
+            await CargarDatosAsync();
+            productoSeleccionadoId = creado.Id;
+            mensaje = $"Producto '{creado.Nombre}' registrado exitosamente.";
+            tipoAlerta = "success";
+        }
+    }
+
+    public class CarritoItemModel
+    {
+        public int ProductoId { get; set; }
+        public string ProductoNombre { get; set; } = string.Empty;
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public decimal Subtotal => Cantidad * PrecioUnitario;
+    }
+}

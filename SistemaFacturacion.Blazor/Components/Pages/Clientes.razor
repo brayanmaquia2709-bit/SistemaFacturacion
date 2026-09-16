@@ -1,0 +1,174 @@
+@page "/clientes"
+@rendermode InteractiveServer
+@inject FacturacionApiService ApiService
+
+
+<PageTitle>Clientes | Facturación Electrónica</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">👥 Gestión de Clientes</h2>
+            <p class="text-muted mb-0">Administra el catálogo de clientes receptores de facturación.</p>
+        </div>
+        <button class="btn btn-indigo px-4" @onclick="AbrirModalNuevo">
+            ➕ Nuevo Cliente
+        </button>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-indigo" role="status"></div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre / Razón Social</th>
+                            <th>RFC / Documento ID</th>
+                            <th>Correo Electrónico</th>
+                            <th>Teléfono</th>
+                            <th>Dirección</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in clientes)
+                        {
+                            <tr>
+                                <td>@c.Id</td>
+                                <td class="fw-bold text-dark">@c.Nombre</td>
+                                <td><span class="badge bg-light text-dark border">@c.DocumentoIdentidad</span></td>
+                                <td>@c.Email</td>
+                                <td>@c.Telefono</td>
+                                <td>@c.Direccion</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => AbrirModalEditar(c)">✏️</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => EliminarCliente(c.Id)">🗑️</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1050;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+                <div class="modal-header bg-indigo text-white">
+                    <h5 class="modal-title fw-bold">@(clienteForm.Id == 0 ? "➕ Crear Nuevo Cliente" : "✏️ Editar Cliente")</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body p-4 bg-white text-dark">
+                    <EditForm Model="clienteForm" OnValidSubmit="GuardarCliente">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">Nombre / Razón Social *</label>
+                            <InputText class="form-control text-dark bg-light border" @bind-Value="clienteForm.Nombre" placeholder="Ej: Empresa S.A." required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">RFC / Documento Identidad *</label>
+                            <InputText class="form-control text-dark bg-light border" @bind-Value="clienteForm.DocumentoIdentidad" placeholder="Ej: ABC123456XYZ" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">Correo Electrónico *</label>
+                            <InputText class="form-control text-dark bg-light border" type="email" @bind-Value="clienteForm.Email" placeholder="cliente@correo.com" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">Teléfono</label>
+                            <InputText class="form-control text-dark bg-light border" @bind-Value="clienteForm.Telefono" placeholder="555-000-0000" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">Dirección Fiscal</label>
+                            <InputText class="form-control text-dark bg-light border" @bind-Value="clienteForm.Direccion" placeholder="Calle, Número, Ciudad" />
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 pt-3">
+                            <button type="button" class="btn btn-secondary px-4 fw-bold" @onclick="CerrarModal">Cancelar</button>
+                            <button type="submit" class="btn btn-indigo px-4 fw-bold">💾 Guardar</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool cargando = true;
+    private List<Cliente> clientes = new();
+    private bool mostrarModal = false;
+    private Cliente clienteForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarClientesAsync();
+    }
+
+    private async Task CargarClientesAsync()
+    {
+        cargando = true;
+        try
+        {
+            clientes = await ApiService.GetClientesAsync();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirModalNuevo()
+    {
+        clienteForm = new Cliente();
+        mostrarModal = true;
+    }
+
+    private void AbrirModalEditar(Cliente c)
+    {
+        clienteForm = new Cliente
+        {
+            Id = c.Id,
+            Nombre = c.Nombre,
+            DocumentoIdentidad = c.DocumentoIdentidad,
+            Email = c.Email,
+            Telefono = c.Telefono,
+            Direccion = c.Direccion
+        };
+        mostrarModal = true;
+    }
+
+    private void CerrarModal() => mostrarModal = false;
+
+    private async Task GuardarCliente()
+    {
+        if (clienteForm.Id == 0)
+        {
+            await ApiService.CrearClienteAsync(clienteForm);
+        }
+        else
+        {
+            await ApiService.ActualizarClienteAsync(clienteForm);
+        }
+        mostrarModal = false;
+        await CargarClientesAsync();
+    }
+
+    private async Task EliminarCliente(int id)
+    {
+        await ApiService.EliminarClienteAsync(id);
+        await CargarClientesAsync();
+    }
+}

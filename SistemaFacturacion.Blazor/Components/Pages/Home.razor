@@ -1,0 +1,274 @@
+@page "/"
+@rendermode InteractiveServer
+@using SistemaFacturacion.Core.DTOs
+@using SistemaFacturacion.Blazor.Services
+@inject FacturacionApiService ApiService
+
+<PageTitle>Dashboard Analytics | Facturación Electrónica</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">📊 Panel de Control y Analytics</h2>
+            <p class="text-muted mb-0">Resumen ejecutivo de facturación, ventas por vendedor, clientes e ingresos.</p>
+        </div>
+        <button class="btn btn-indigo px-4" @onclick="CargarDatosAsync">
+            🔄 Actualizar Datos
+        </button>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-indigo" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Tarjetas de Métricas Rápidas -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 bg-light-indigo text-indigo me-3 fs-3">
+                            💳
+                        </div>
+                        <div>
+                            <span class="text-muted small">Total Ventas Facturadas</span>
+                            <h3 class="fw-bold text-dark mb-0">$@totalVentas.ToString("N2")</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 bg-light-success text-success me-3 fs-3">
+                            📄
+                        </div>
+                        <div>
+                            <span class="text-muted small">Facturas Emitidas</span>
+                            <h3 class="fw-bold text-dark mb-0">@totalFacturasCount</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 bg-light-warning text-warning me-3 fs-3">
+                            👥
+                        </div>
+                        <div>
+                            <span class="text-muted small">Clientes Registrados</span>
+                            <h3 class="fw-bold text-dark mb-0">@totalClientesCount</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 bg-light-info text-info me-3 fs-3">
+                            📦
+                        </div>
+                        <div>
+                            <span class="text-muted small">Productos en Catálogo</span>
+                            <h3 class="fw-bold text-dark mb-0">@totalProductosCount</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. NUEVA SECCIÓN: Ventas por Vendedor / Usuario -->
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1">👔 Rendimiento de Ventas por Vendedor / Usuario</h5>
+                    <p class="text-muted small mb-0">Monitorea el total de facturas y dinero acumulado por cada cajero en uso simultáneo.</p>
+                </div>
+                <span class="badge bg-indigo fs-6 px-3 py-2">En Tiempo Real ⚡</span>
+            </div>
+
+            @if (reportesUsuario.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Vendedor / Cajero</th>
+                                <th class="text-center">Rol</th>
+                                <th class="text-center">Facturas Realizadas</th>
+                                <th class="text-end">Total Vendido ($)</th>
+                                <th class="text-end">Ticket Promedio ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in reportesUsuario)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark fs-6">👤 @u.NombreUsuario</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge @(u.Rol == "Admin" ? "bg-purple text-white" : "bg-primary")">@u.Rol</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border fs-6 px-3">@u.CantidadVentas facturas</span>
+                                    </td>
+                                    <td class="text-end fw-bold text-success fs-6">
+                                        $@u.TotalVendido.ToString("N2")
+                                    </td>
+                                    <td class="text-end fw-bold text-indigo fs-6">
+                                        $@u.TicketPromedio.ToString("N2")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light text-center py-4">No hay registro de ventas asociadas a usuarios aún.</div>
+            }
+        </div>
+
+        <!-- Secciones de Gráficos y Tablas Agregadas -->
+        <div class="row g-4">
+            <!-- 1. Reporte de Ventas por Mes -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+                    <h5 class="fw-bold text-dark mb-3">📅 Reporte de Ventas por Mes</h5>
+                    @if (reportesMes.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Mes / Año</th>
+                                        <th class="text-center">Facturas</th>
+                                        <th class="text-end">Total Facturado</th>
+                                        <th>Proporción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var r in reportesMes)
+                                    {
+                                        var pct = maxVentaMes > 0 ? (int)(r.TotalVentas / maxVentaMes * 100) : 0;
+                                        <tr>
+                                            <td class="fw-bold">@r.NombreMes @r.Anio</td>
+                                            <td class="text-center"><span class="badge bg-light text-dark border">@r.TotalFacturas</span></td>
+                                            <td class="text-end fw-bold text-indigo">$@r.TotalVentas.ToString("N2")</td>
+                                            <td style="width: 30%;">
+                                                <div class="progress" style="height: 10px;">
+                                                    <div class="progress-bar bg-indigo" style="width: @pct%;"></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light text-center py-4">No hay datos de ventas mensuales aún.</div>
+                    }
+                </div>
+            </div>
+
+            <!-- 2. Reporte de Ventas por Cliente -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+                    <h5 class="fw-bold text-dark mb-3">🏆 Top Clientes por Facturación</h5>
+                    @if (reportesCliente.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th class="text-center">Facturas</th>
+                                        <th class="text-end">Total Comprado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var c in reportesCliente)
+                                    {
+                                        <tr>
+                                            <td class="fw-bold text-truncate" style="max-width: 200px;">@c.NombreCliente</td>
+                                            <td class="text-center"><span class="badge bg-info text-dark">@c.TotalFacturas</span></td>
+                                            <td class="text-end fw-bold text-success">$@c.TotalComprado.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light text-center py-4">No hay ventas registradas por cliente aún.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool cargando = true;
+    private decimal totalVentas = 0;
+    private int totalFacturasCount = 0;
+    private int totalClientesCount = 0;
+    private int totalProductosCount = 0;
+
+    private List<ReporteVentasMesDto> reportesMes = new();
+    private List<ReporteVentasClienteDto> reportesCliente = new();
+    private List<VentasPorUsuarioDto> reportesUsuario = new();
+    private decimal maxVentaMes = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosAsync();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        cargando = true;
+        try
+        {
+            var facturas = await ApiService.GetFacturasAsync();
+            var clientes = await ApiService.GetClientesAsync();
+            var productos = await ApiService.GetProductosAsync();
+
+            totalFacturasCount = facturas.Count;
+            totalVentas = facturas.Where(f => f.Estado != "Anulada").Sum(f => f.Total);
+            totalClientesCount = clientes.Count;
+            totalProductosCount = productos.Count;
+
+            reportesMes = await ApiService.GetReporteVentasMesAsync();
+            reportesCliente = await ApiService.GetReporteVentasClienteAsync();
+            reportesUsuario = await ApiService.GetReporteVentasUsuarioAsync();
+
+            if (reportesMes.Any())
+            {
+                maxVentaMes = reportesMes.Max(r => r.TotalVentas);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error cargando dashboard: " + ex.Message);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

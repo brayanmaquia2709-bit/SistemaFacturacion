@@ -1,0 +1,574 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SistemaFacturacion.Maui.MainPage"
+             Title="Facturación Electrónica POS">
+
+    <Grid RowDefinitions="Auto, *">
+        <!-- Header -->
+        <Border Grid.Row="0" BackgroundColor="#3730A3" Padding="20,12" StrokeThickness="0">
+            <Grid ColumnDefinitions="*, Auto">
+                <VerticalStackLayout Grid.Column="0">
+                    <Label Text="⚡ Terminal POS Facturación" FontSize="20" FontAttributes="Bold" TextColor="White" />
+                    <Label x:Name="UserSessionLabel" Text="🔒 Sesión Bloqueada: Inicie Sesión para Operar" FontSize="12" FontAttributes="Bold" TextColor="#F87171" />
+                </VerticalStackLayout>
+                <HorizontalStackLayout Grid.Column="1" Spacing="6">
+                    <Button Text="💵 Caja" Clicked="OnAbrirModalCajaClicked" BackgroundColor="#059669" TextColor="White" FontSize="11" HeightRequest="36" CornerRadius="8" Padding="10,0" />
+                    <Button Text="💳 Cobranza" Clicked="OnAbrirModalCuentasClicked" BackgroundColor="#D97706" TextColor="White" FontSize="11" HeightRequest="36" CornerRadius="8" Padding="10,0" />
+                    <Button Text="🌐 IP" Clicked="OnAbrirModalServerClicked" BackgroundColor="#0D9488" TextColor="White" FontSize="11" HeightRequest="36" CornerRadius="8" Padding="10,0" />
+                    <Button x:Name="AbrirLoginBtn" Text="🔑 Iniciar Sesión" Clicked="OnAbrirModalLoginClicked" BackgroundColor="#4F46E5" TextColor="White" FontSize="11" HeightRequest="36" CornerRadius="8" Padding="10,0" />
+                    <Button x:Name="CerrarSesionBtn" Text="🚪 Cerrar Sesión" Clicked="OnCerrarSesionClicked" IsVisible="False" BackgroundColor="#EF4444" TextColor="White" FontSize="11" HeightRequest="36" CornerRadius="8" Padding="10,0" />
+                    <Button Text="🔄 Cargar" Clicked="OnRecargarClicked" BackgroundColor="#6366F1" TextColor="White" FontSize="11" HeightRequest="36" CornerRadius="8" Padding="10,0" />
+                </HorizontalStackLayout>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <ScrollView x:Name="MainContentScrollView" Grid.Row="1" BackgroundColor="#F8FAFC" IsEnabled="False" InputTransparent="True" Opacity="0.45">
+            <Grid x:Name="MainLayoutGrid" ColumnDefinitions="*, *" RowDefinitions="Auto, Auto" Padding="12" ColumnSpacing="12" RowSpacing="12">
+
+                <!-- Left Column: Customer, Products & Options -->
+                <VerticalStackLayout x:Name="LeftColumnStack" Grid.Column="0" Grid.Row="0" Spacing="12">
+
+                    <!-- Customer Card -->
+                    <Border StrokeShape="RoundRectangle 12" Stroke="#6366F1" StrokeThickness="1.5" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="10">
+                            <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6">
+                                <Label Grid.Column="0" Text="1. Cliente Receptivo" FontSize="16" FontAttributes="Bold" TextColor="#0F172A" VerticalOptions="Center"/>
+                                <Button Grid.Column="1" Text="🔍 Buscar" Clicked="OnAbrirModalBuscarClienteClicked" BackgroundColor="#6366F1" TextColor="White" FontSize="11" HeightRequest="32" CornerRadius="6" Padding="10,0"/>
+                                <Button Grid.Column="2" Text="➕ Nuevo" Clicked="OnAbrirModalClienteClicked" BackgroundColor="#4F46E5" TextColor="White" FontSize="11" HeightRequest="32" CornerRadius="6" Padding="10,0"/>
+                            </Grid>
+                            
+                            <!-- Large Prominent Selection Dropdown Box -->
+                            <Border StrokeShape="RoundRectangle 8" Stroke="#4F46E5" StrokeThickness="2" BackgroundColor="#F8FAFC" Padding="12,4" HeightRequest="52">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnClienteBoxTapped" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="*, Auto" VerticalOptions="Center">
+                                    <Picker Grid.Column="0" x:Name="ClientePicker" ItemDisplayBinding="{Binding Nombre}" SelectedIndexChanged="OnClienteSelected" FontSize="15" FontAttributes="Bold" TextColor="#0F172A" TitleColor="#475569" BackgroundColor="Transparent" VerticalOptions="Center" HorizontalOptions="Fill" />
+                                    <Label Grid.Column="1" Text="▼" FontSize="14" TextColor="#4F46E5" FontAttributes="Bold" VerticalOptions="Center" Margin="5,0,5,0" InputTransparent="True" />
+                                </Grid>
+                            </Border>
+                            
+                            <!-- Tarjeta de Confirmación Visual Cliente -->
+                            <Border x:Name="ClienteCardBadge" IsVisible="False" BackgroundColor="#EEF2FF" Stroke="#6366F1" StrokeThickness="1.5" StrokeShape="RoundRectangle 8" Padding="12">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label x:Name="ClienteBadgeNombre" Text="👤 Nombre Cliente" FontSize="14" FontAttributes="Bold" TextColor="#1E1B4B" />
+                                    <Label x:Name="ClienteBadgeDoc" Text="🆔 Doc: 123456" FontSize="12" TextColor="#3730A3" />
+                                    <Label x:Name="ClienteBadgeEmail" Text="📧 email@correo.com" FontSize="12" TextColor="#4338CA" />
+                                    <Label x:Name="ClienteBadgeTel" Text="📞 Tel: 3000000" FontSize="12" TextColor="#4338CA" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Product Card -->
+                    <Border StrokeShape="RoundRectangle 12" Stroke="#10B981" StrokeThickness="1.5" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="10">
+                            <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6">
+                                <Label Grid.Column="0" Text="2. Catálogo &amp; Productos" FontSize="16" FontAttributes="Bold" TextColor="#0F172A" VerticalOptions="Center"/>
+                                <Button Grid.Column="1" Text="🔍 Buscar" Clicked="OnAbrirModalBuscarProductoClicked" BackgroundColor="#059669" TextColor="White" FontSize="11" HeightRequest="32" CornerRadius="6" Padding="10,0"/>
+                                <Button Grid.Column="2" Text="➕ Nuevo" Clicked="OnAbrirModalProductoClicked" BackgroundColor="#10B981" TextColor="White" FontSize="11" HeightRequest="32" CornerRadius="6" Padding="10,0"/>
+                            </Grid>
+
+                            <!-- Barcode Scanner Quick Input -->
+                            <Border StrokeShape="RoundRectangle 8" Stroke="#10B981" StrokeThickness="1" BackgroundColor="#F0FDF4" Padding="8,4">
+                                <Grid ColumnDefinitions="Auto, *" ColumnSpacing="6">
+                                    <Label Grid.Column="0" Text="📷 Escáner / Barcode:" FontSize="12" FontAttributes="Bold" TextColor="#047857" VerticalOptions="Center" />
+                                    <Entry Grid.Column="1" x:Name="BarcodeScannerEntry" Placeholder="Escanee o digite código..." Completed="OnBarcodeScannedCompleted" HeightRequest="38" TextColor="#0F172A" BackgroundColor="White" FontSize="13" />
+                                </Grid>
+                            </Border>
+                            
+                            <!-- Large Prominent Selection Dropdown Box -->
+                            <Border StrokeShape="RoundRectangle 8" Stroke="#10B981" StrokeThickness="2" BackgroundColor="#ECFDF5" Padding="12,4" HeightRequest="52">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnProductoBoxTapped" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="*, Auto" VerticalOptions="Center">
+                                    <Picker Grid.Column="0" x:Name="ProductoPicker" ItemDisplayBinding="{Binding Nombre}" SelectedIndexChanged="OnProductoSelected" FontSize="15" FontAttributes="Bold" TextColor="#064E3B" TitleColor="#047857" BackgroundColor="Transparent" VerticalOptions="Center" HorizontalOptions="Fill" />
+                                    <Label Grid.Column="1" Text="▼" FontSize="14" TextColor="#10B981" FontAttributes="Bold" VerticalOptions="Center" Margin="5,0,5,0" InputTransparent="True" />
+                                </Grid>
+                            </Border>
+                            
+                            <!-- Tarjeta de Confirmación Visual Producto -->
+                            <Border x:Name="ProductoCardBadge" IsVisible="False" BackgroundColor="#ECFDF5" Stroke="#10B981" StrokeThickness="1.5" StrokeShape="RoundRectangle 8" Padding="12">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                        <Label x:Name="ProductoBadgeNombre" Text="📦 Nombre Producto" FontSize="14" FontAttributes="Bold" TextColor="#064E3B" />
+                                        <Label x:Name="ProductoBadgePrecio" Text="💰 Precio: $0.00" FontSize="13" FontAttributes="Bold" TextColor="#047857" />
+                                        <Label x:Name="ProductoBadgeCodigo" Text="🏷️ SKU: PROD-000" FontSize="11" TextColor="#065F46" />
+                                    </VerticalStackLayout>
+                                    <Border Grid.Column="1" x:Name="StockBadgeBorder" BackgroundColor="#10B981" StrokeThickness="0" StrokeShape="RoundRectangle 6" Padding="8,4" VerticalOptions="Center">
+                                        <Label x:Name="ProductoBadgeStock" Text="Stock: 0" FontSize="12" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center"/>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
+                                <Entry x:Name="CantidadEntry" Placeholder="Cantidad" Keyboard="Numeric" Text="1" HeightRequest="45" TextColor="#0F172A" PlaceholderColor="#94A3B8" BackgroundColor="#F8FAFC" />
+                                <Button Grid.Column="1" Text="➕ Agregar al Carrito" Clicked="OnAgregarProductoClicked" BackgroundColor="#10B981" TextColor="White" FontAttributes="Bold" CornerRadius="8" HeightRequest="45" />
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Payment Method & Discounts Card -->
+                    <Border StrokeShape="RoundRectangle 12" Stroke="#CBD5E1" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="3. Condiciones de Pago" FontSize="16" FontAttributes="Bold" TextColor="#0F172A" />
+                            <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
+                                <VerticalStackLayout Grid.Column="0">
+                                    <Label Text="Forma de Pago" FontSize="12" TextColor="#475569"/>
+                                    <Picker x:Name="FormaPagoPicker" HeightRequest="45" TextColor="#0F172A" TitleColor="#64748B" BackgroundColor="#F8FAFC">
+                                        <Picker.ItemsSource>
+                                            <x:Array Type="{x:Type x:String}">
+                                                <x:String>Efectivo</x:String>
+                                                <x:String>TarjetaCredito</x:String>
+                                                <x:String>TarjetaDebito</x:String>
+                                                <x:String>Transferencia</x:String>
+                                                <x:String>Credito</x:String>
+                                            </x:Array>
+                                        </Picker.ItemsSource>
+                                    </Picker>
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1">
+                                    <Label Text="Descuento (%)" FontSize="12" TextColor="#475569"/>
+                                    <Entry x:Name="DescuentoEntry" Placeholder="0" Keyboard="Numeric" Text="0" Unfocused="OnDescuentoChanged" HeightRequest="45" TextColor="#0F172A" PlaceholderColor="#94A3B8" BackgroundColor="#F8FAFC" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Indicator -->
+                    <ActivityIndicator x:Name="LoadingSpinner" IsRunning="False" IsVisible="False" Color="#4F46E5" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+
+                <!-- Right Column: Shopping Cart & Totals -->
+                <VerticalStackLayout x:Name="RightColumnStack" Grid.Column="1" Grid.Row="0" Spacing="12">
+
+                    <Border StrokeShape="RoundRectangle 12" Stroke="#CBD5E1" Padding="15" BackgroundColor="White">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="4. Carrito de Ventas" FontSize="16" FontAttributes="Bold" TextColor="#0F172A" />
+
+                            <CollectionView x:Name="CarritoCollectionView" HeightRequest="200">
+                                <CollectionView.EmptyView>
+                                    <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Padding="20">
+                                        <Label Text="🛒 Carrito vacío" FontSize="14" TextColor="#94A3B8" HorizontalOptions="Center" />
+                                    </VerticalStackLayout>
+                                </CollectionView.EmptyView>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*, Auto, Auto, Auto" Padding="5,8" ColumnSpacing="8">
+                                            <VerticalStackLayout Grid.Column="0">
+                                                <Label Text="{Binding ProductoNombre}" FontAttributes="Bold" FontSize="13" TextColor="#0F172A"/>
+                                                <Label Text="{Binding UnitPriceText}" FontSize="11" TextColor="#64748B"/>
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="1" Text="{Binding CantidadText}" VerticalOptions="Center" FontSize="12" TextColor="#0F172A"/>
+                                            <Label Grid.Column="2" Text="{Binding SubtotalText}" FontAttributes="Bold" TextColor="#059669" VerticalOptions="Center" FontSize="13"/>
+                                            <Button Grid.Column="3" Text="❌" Clicked="OnEliminarItemClicked" CommandParameter="{Binding .}" BackgroundColor="Transparent" TextColor="#EF4444" HeightRequest="30" WidthRequest="30" Padding="0"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <BoxView HeightRequest="1" Color="#E2E8F0" Margin="0,5" />
+
+                            <!-- Totals -->
+                            <Grid RowDefinitions="Auto, Auto, Auto, Auto" ColumnDefinitions="*, Auto" RowSpacing="5">
+                                <Label Grid.Row="0" Grid.Column="0" Text="Subtotal Bruto:" TextColor="#475569" />
+                                <Label Grid.Row="0" Grid.Column="1" x:Name="SubtotalLabel" Text="$0.00" FontAttributes="Bold" TextColor="#0F172A" />
+
+                                <Label Grid.Row="1" Grid.Column="0" Text="Descuento:" TextColor="#DC2626" />
+                                <Label Grid.Row="1" Grid.Column="1" x:Name="DescuentoLabel" Text="$0.00" TextColor="#DC2626" />
+
+                                <Label Grid.Row="2" Grid.Column="0" Text="IVA (19%):" TextColor="#475569" />
+                                <Label Grid.Row="2" Grid.Column="1" x:Name="ImpuestoLabel" Text="$0.00" TextColor="#64748B" />
+
+                                <Label Grid.Row="3" Grid.Column="0" Text="Total Factura:" FontSize="18" FontAttributes="Bold" TextColor="#4F46E5" />
+                                <Label Grid.Row="3" Grid.Column="1" x:Name="TotalLabel" Text="$0.00" FontSize="18" FontAttributes="Bold" TextColor="#4F46E5" />
+                            </Grid>
+
+                            <!-- Actions -->
+                            <Button x:Name="GenerarBtn" Text="🚀 Generar Factura" Clicked="OnGenerarFacturaClicked" BackgroundColor="#4F46E5" TextColor="White" FontAttributes="Bold" HeightRequest="45" CornerRadius="8" Margin="0,10,0,0" />
+
+                            <Grid ColumnDefinitions="*, *, *" ColumnSpacing="8">
+                                <Button Grid.Column="0" x:Name="PdfBtn" Text="📥 PDF" Clicked="OnDescargarPdfClicked" IsEnabled="False" BackgroundColor="#DC2626" TextColor="White" CornerRadius="8" HeightRequest="40"/>
+                                <Button Grid.Column="1" x:Name="CorreoBtn" Text="✉️ Email" Clicked="OnEnviarCorreoClicked" IsEnabled="False" BackgroundColor="#2563EB" TextColor="White" CornerRadius="8" HeightRequest="40"/>
+                                <Button Grid.Column="2" x:Name="WhatsAppBtn" Text="📲 WhatsApp" Clicked="OnWhatsAppClicked" IsEnabled="False" BackgroundColor="#16A34A" TextColor="White" CornerRadius="8" HeightRequest="40"/>
+                            </Grid>
+
+                        </VerticalStackLayout>
+                    </Border>
+
+                </VerticalStackLayout>
+
+            </Grid>
+        </ScrollView>
+
+        <!-- Modal Overlay Login Vendedor -->
+        <Grid x:Name="ModalLoginOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="1000" IsVisible="False" BackgroundColor="#D00F172A" HorizontalOptions="Fill" VerticalOptions="Fill" InputTransparent="False">
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnModalOverlayBackgroundTapped" />
+            </Grid.GestureRecognizers>
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="420" Margin="12" BackgroundColor="White" Stroke="#4F46E5" StrokeThickness="2" StrokeShape="RoundRectangle 16" Padding="20">
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="🔑 Iniciar Sesión Vendedor" FontSize="18" FontAttributes="Bold" TextColor="#0F172A" HorizontalOptions="Center" />
+                    <Label Text="Seleccione usuario o ingrese credenciales:" FontSize="12" TextColor="#64748B" HorizontalOptions="Center" />
+                    
+                    <Picker x:Name="UsuariosRapidosPicker" Title="-- Seleccionar Usuario --" ItemDisplayBinding="{Binding Nombre}" SelectedIndexChanged="OnUsuarioRapidoSelected" HeightRequest="45" TextColor="#0F172A" BackgroundColor="#F8FAFC" />
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Nombre de Usuario" FontSize="12" FontAttributes="Bold" TextColor="#334155" />
+                        <Entry x:Name="LoginUsernameEntry" Text="cajero1" Placeholder="Usuario (ej: cajero1)" HeightRequest="42" TextColor="#000000" BackgroundColor="#F1F5F9" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Contraseña" FontSize="12" FontAttributes="Bold" TextColor="#334155" />
+                        <Entry x:Name="LoginPasswordEntry" Text="123" IsPassword="True" Placeholder="Contraseña" HeightRequest="42" TextColor="#000000" BackgroundColor="#F1F5F9" />
+                    </VerticalStackLayout>
+
+                    <Button Text="🔓 Iniciar Sesión" Clicked="OnIngresarLoginClicked" BackgroundColor="#4F46E5" TextColor="White" FontAttributes="Bold" HeightRequest="45" CornerRadius="8" Margin="0,5,0,0" />
+                    
+                    <Grid ColumnDefinitions="*, *" ColumnSpacing="8">
+                        <Button Grid.Column="0" Text="🌐 Configurar IP" Clicked="OnAbrirModalServerClicked" BackgroundColor="#0D9488" TextColor="White" FontSize="11" HeightRequest="38" CornerRadius="8" />
+                        <Button Grid.Column="1" Text="❌ Omitir" Clicked="OnCerrarModalLoginClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="38" CornerRadius="8" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay Nuevo Cliente -->
+        <Grid x:Name="ModalClienteOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="999" IsVisible="False" BackgroundColor="#B0000000" HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="450" Margin="12" BackgroundColor="#FFFFFF" Stroke="#4F46E5" StrokeThickness="1" StrokeShape="RoundRectangle 12" Padding="20">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="➕ Registrar Nuevo Cliente" FontSize="18" FontAttributes="Bold" TextColor="#111827" />
+                    
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Nombre / Razón Social *" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ClienteNombreEntry" Placeholder="Ej: Juan Pérez" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="NIT / Documento Identidad *" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ClienteDocumentoEntry" Placeholder="Ej: 123456789" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Correo Electrónico *" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ClienteEmailEntry" Placeholder="cliente@correo.com" Keyboard="Email" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Teléfono" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ClienteTelefonoEntry" Placeholder="3001234567" Keyboard="Telephone" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Dirección" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ClienteDireccionEntry" Placeholder="Calle 123 #45-67" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="*, *" ColumnSpacing="12" Margin="0,10,0,0">
+                        <Button Grid.Column="0" Text="Cancelar" Clicked="OnCerrarModalClienteClicked" BackgroundColor="#E5E7EB" TextColor="#111827" FontAttributes="Bold" CornerRadius="8" HeightRequest="42"/>
+                        <Button Grid.Column="1" Text="💾 Guardar Cliente" Clicked="OnGuardarClienteClicked" BackgroundColor="#4F46E5" TextColor="#FFFFFF" FontAttributes="Bold" CornerRadius="8" HeightRequest="42"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay Nuevo Producto -->
+        <Grid x:Name="ModalProductoOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="999" IsVisible="False" BackgroundColor="#B0000000" HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="450" Margin="12" BackgroundColor="#FFFFFF" Stroke="#10B981" StrokeThickness="1" StrokeShape="RoundRectangle 12" Padding="20">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="➕ Registrar Nuevo Producto" FontSize="18" FontAttributes="Bold" TextColor="#111827" />
+                    
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Nombre del Producto *" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ProductoNombreEntry" Placeholder="Ej: Laptop HP 15" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Categoría" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ProductoCategoriaEntry" Placeholder="Ej: Tecnología" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Precio Unitario ($) *" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ProductoPrecioEntry" Placeholder="0.00" Keyboard="Numeric" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Stock Inicial *" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ProductoStockEntry" Placeholder="10" Keyboard="Numeric" Text="10" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Código de Barras / SKU" FontSize="12" FontAttributes="Bold" TextColor="#374151" />
+                        <Entry x:Name="ProductoCodigoBarraEntry" Placeholder="PROD-001" HeightRequest="44" TextColor="#000000" PlaceholderColor="#6B7280" BackgroundColor="#F3F4F6" />
+                    </VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="*, *" ColumnSpacing="12" Margin="0,10,0,0">
+                        <Button Grid.Column="0" Text="Cancelar" Clicked="OnCerrarModalProductoClicked" BackgroundColor="#E5E7EB" TextColor="#111827" FontAttributes="Bold" CornerRadius="8" HeightRequest="42"/>
+                        <Button Grid.Column="1" Text="💾 Guardar Producto" Clicked="OnGuardarProductoClicked" BackgroundColor="#10B981" TextColor="#FFFFFF" FontAttributes="Bold" CornerRadius="8" HeightRequest="42"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay Buscar Cliente -->
+        <Grid x:Name="ModalBuscarClienteOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="998" IsVisible="False" BackgroundColor="#B0000000" HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="500" MaximumHeightRequest="560" Margin="12" BackgroundColor="#FFFFFF" Stroke="#4F46E5" StrokeThickness="2" StrokeShape="RoundRectangle 12" Padding="15">
+                <Grid RowDefinitions="Auto, Auto, *" RowSpacing="12">
+                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                        <Label Text="🔍 Seleccionar / Buscar Cliente" FontSize="18" FontAttributes="Bold" TextColor="#0F172A" VerticalOptions="Center"/>
+                        <Button Grid.Column="1" Text="❌ Cerrar" Clicked="OnCerrarModalBuscarClienteClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32"/>
+                    </Grid>
+
+                    <Entry Grid.Row="1" x:Name="BuscarClienteEntry" Placeholder="Escriba nombre, NIT o correo..." TextChanged="OnBuscarClienteTextChanged" HeightRequest="44" TextColor="#0F172A" BackgroundColor="#F8FAFC" />
+
+                    <CollectionView Grid.Row="2" x:Name="BuscarClienteCollectionView" SelectionMode="Single" SelectionChanged="OnBuscarClienteSelectionChanged">
+                        <CollectionView.EmptyView>
+                            <Label Text="No se encontraron clientes que coincidan" TextColor="#94A3B8" HorizontalOptions="Center" VerticalOptions="Center" Margin="20"/>
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Stroke="#E2E8F0" StrokeShape="RoundRectangle 8" Padding="12" Margin="0,4" BackgroundColor="#F8FAFC">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                            <Label Text="{Binding Nombre}" FontAttributes="Bold" FontSize="14" TextColor="#0F172A"/>
+                                            <Label Text="{Binding DocumentoIdentidad, StringFormat='NIT/Doc: {0}'}" FontSize="12" TextColor="#475569"/>
+                                            <Label Text="{Binding Email, StringFormat='Email: {0}'}" FontSize="11" TextColor="#64748B"/>
+                                        </VerticalStackLayout>
+                                        <Button Grid.Column="1" Text="Seleccionar" Clicked="OnSeleccionarClienteItemClicked" CommandParameter="{Binding .}" BackgroundColor="#4F46E5" TextColor="White" FontSize="11" HeightRequest="34" VerticalOptions="Center"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay Buscar Producto -->
+        <Grid x:Name="ModalBuscarProductoOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="998" IsVisible="False" BackgroundColor="#B0000000" HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="550" MaximumHeightRequest="560" Margin="12" BackgroundColor="#FFFFFF" Stroke="#10B981" StrokeThickness="2" StrokeShape="RoundRectangle 12" Padding="15">
+                <Grid RowDefinitions="Auto, Auto, *" RowSpacing="12">
+                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                        <Label Text="🔍 Seleccionar / Buscar Producto" FontSize="18" FontAttributes="Bold" TextColor="#0F172A" VerticalOptions="Center"/>
+                        <Button Grid.Column="1" Text="❌ Cerrar" Clicked="OnCerrarModalBuscarProductoClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32"/>
+                    </Grid>
+
+                    <Entry Grid.Row="1" x:Name="BuscarProductoEntry" Placeholder="Escriba nombre, código de barras o categoría..." TextChanged="OnBuscarProductoTextChanged" HeightRequest="44" TextColor="#0F172A" BackgroundColor="#F8FAFC" />
+
+                    <CollectionView Grid.Row="2" x:Name="BuscarProductoCollectionView" SelectionMode="Single" SelectionChanged="OnBuscarProductoSelectionChanged">
+                        <CollectionView.EmptyView>
+                            <Label Text="No se encontraron productos que coincidan" TextColor="#94A3B8" HorizontalOptions="Center" VerticalOptions="Center" Margin="20"/>
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Stroke="#E2E8F0" StrokeShape="RoundRectangle 8" Padding="12" Margin="0,4" BackgroundColor="#F8FAFC">
+                                    <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="10">
+                                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                            <Label Text="{Binding Nombre}" FontAttributes="Bold" FontSize="14" TextColor="#0F172A"/>
+                                            <Label Text="{Binding Categoria, StringFormat='Categoría: {0}'}" FontSize="12" TextColor="#475569"/>
+                                            <Label Text="{Binding CodigoBarra, StringFormat='SKU: {0}'}" FontSize="11" TextColor="#64748B"/>
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" HorizontalOptions="End" Spacing="2">
+                                            <Label Text="{Binding Precio, StringFormat='${0:N2}'}" FontAttributes="Bold" FontSize="14" TextColor="#059669" HorizontalOptions="End"/>
+                                            <Label Text="{Binding Stock, StringFormat='Stock: {0} uds'}" FontSize="11" TextColor="#475569" HorizontalOptions="End"/>
+                                        </VerticalStackLayout>
+                                        <Button Grid.Column="2" Text="Seleccionar" Clicked="OnSeleccionarProductoItemClicked" CommandParameter="{Binding .}" BackgroundColor="#10B981" TextColor="White" FontSize="11" HeightRequest="34" VerticalOptions="Center"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay Configuración Servidor IP -->
+        <Grid x:Name="ModalServerOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="1001" IsVisible="False" BackgroundColor="#D00F172A" HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="420" Margin="12" BackgroundColor="White" Stroke="#0D9488" StrokeThickness="2" StrokeShape="RoundRectangle 16" Padding="20">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="🌐 Configurar Servidor API" FontSize="18" FontAttributes="Bold" TextColor="#0F172A" HorizontalOptions="Center" />
+                    <Label Text="Ingrese la dirección IP del servidor API en su red:" FontSize="12" TextColor="#64748B" HorizontalOptions="Center" HorizontalTextAlignment="Center" />
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="URL de la API" FontSize="12" FontAttributes="Bold" TextColor="#334155" />
+                        <Entry x:Name="ServerUrlEntry" Placeholder="http://192.168.1.50:5145" HeightRequest="44" TextColor="#000000" BackgroundColor="#F1F5F9" />
+                    </VerticalStackLayout>
+
+                    <Border BackgroundColor="#F0FDFA" Stroke="#0D9488" StrokeThickness="1" StrokeShape="RoundRectangle 8" Padding="10">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="💡 Guía de Conexión:" FontSize="11" FontAttributes="Bold" TextColor="#0F766E" />
+                            <Label Text="• Para Celular Real en WiFi: use la IP de su PC (ej: http://192.168.1.15:5145)" FontSize="10" TextColor="#115E59" />
+                            <Label Text="• Para Emulador Android: use http://10.0.2.2:5145" FontSize="10" TextColor="#115E59" />
+                            <Label Text="• Para Windows (PC local): use http://localhost:5145" FontSize="10" TextColor="#115E59" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Grid ColumnDefinitions="*, *" ColumnSpacing="10" Margin="0,5,0,0">
+                        <Button Grid.Column="0" Text="Cancelar" Clicked="OnCerrarModalServerClicked" BackgroundColor="#E5E7EB" TextColor="#111827" FontAttributes="Bold" CornerRadius="8" HeightRequest="42"/>
+                        <Button Grid.Column="1" Text="💾 Guardar y Probar" Clicked="OnGuardarServerClicked" BackgroundColor="#0D9488" TextColor="White" FontAttributes="Bold" CornerRadius="8" HeightRequest="42"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay Cobro & Calculadora de Cambio POS -->
+        <Grid x:Name="ModalCobroOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="1002" IsVisible="False" BackgroundColor="#D00F172A" HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="450" Margin="12" BackgroundColor="White" Stroke="#4F46E5" StrokeThickness="2" StrokeShape="RoundRectangle 16" Padding="20">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="💰 Procesar Cobro &amp; Cambio" FontSize="18" FontAttributes="Bold" TextColor="#0F172A" HorizontalOptions="Center" />
+                    
+                    <Border BackgroundColor="#EEF2FF" Stroke="#6366F1" StrokeThickness="1" StrokeShape="RoundRectangle 10" Padding="15">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <Label Grid.Column="0" Text="TOTAL A COBRAR:" FontSize="14" FontAttributes="Bold" TextColor="#3730A3" VerticalOptions="Center" />
+                            <Label Grid.Column="1" x:Name="ModalCobroTotalLabel" Text="$0.00" FontSize="22" FontAttributes="Bold" TextColor="#4F46E5" />
+                        </Grid>
+                    </Border>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Forma de Pago" FontSize="12" FontAttributes="Bold" TextColor="#334155" />
+                        <Picker x:Name="ModalCobroFormaPagoPicker" SelectedIndexChanged="OnModalCobroFormaPagoChanged" HeightRequest="44" TextColor="#0F172A" BackgroundColor="#F1F5F9">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Efectivo</x:String>
+                                    <x:String>Tarjeta</x:String>
+                                    <x:String>Transferencia</x:String>
+                                    <x:String>Credito</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout x:Name="CalculadoraCambioStack" Spacing="8">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Paga Con ($)" FontSize="12" FontAttributes="Bold" TextColor="#334155" />
+                            <Entry x:Name="ModalPagaConEntry" TextChanged="OnPagaConTextChanged" Placeholder="Monto abonado por el cliente" Keyboard="Numeric" HeightRequest="48" FontSize="18" FontAttributes="Bold" TextColor="#059669" BackgroundColor="#ECFDF5" />
+                        </VerticalStackLayout>
+
+                        <!-- Quick Cash Shortcut Buttons -->
+                        <HorizontalStackLayout Spacing="6" HorizontalOptions="Center">
+                            <Button Text="Exacto" Clicked="OnBotonMontoExactoClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32" Padding="8,0"/>
+                            <Button Text="$10.000" Clicked="OnBotonMontoRapidoClicked" CommandParameter="10000" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32" Padding="8,0"/>
+                            <Button Text="$20.000" Clicked="OnBotonMontoRapidoClicked" CommandParameter="20000" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32" Padding="8,0"/>
+                            <Button Text="$50.000" Clicked="OnBotonMontoRapidoClicked" CommandParameter="50000" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32" Padding="8,0"/>
+                            <Button Text="$100.000" Clicked="OnBotonMontoRapidoClicked" CommandParameter="100000" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32" Padding="8,0"/>
+                        </HorizontalStackLayout>
+
+                        <Border BackgroundColor="#FEF2F2" Stroke="#EF4444" StrokeThickness="1" StrokeShape="RoundRectangle 10" Padding="12">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <Label Grid.Column="0" Text="CAMBIO A ENTREGAR:" FontSize="13" FontAttributes="Bold" TextColor="#991B1B" VerticalOptions="Center" />
+                                <Label Grid.Column="1" x:Name="ModalCambioLabel" Text="$0.00" FontSize="20" FontAttributes="Bold" TextColor="#DC2626" />
+                            </Grid>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <Grid ColumnDefinitions="*, *" ColumnSpacing="10" Margin="0,10,0,0">
+                        <Button Grid.Column="0" Text="Cancelar" Clicked="OnCerrarModalCobroClicked" BackgroundColor="#E5E7EB" TextColor="#111827" FontAttributes="Bold" CornerRadius="8" HeightRequest="45"/>
+                        <Button Grid.Column="1" Text="✅ Confirmar Cobro" Clicked="OnConfirmarCobroClicked" BackgroundColor="#10B981" TextColor="White" FontAttributes="Bold" CornerRadius="8" HeightRequest="45"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay Control de Caja (Apertura / Movimientos / Cierre X y Z) -->
+        <Grid x:Name="ModalCajaOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="1002" IsVisible="False" BackgroundColor="#D00F172A" HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="500" Margin="12" BackgroundColor="White" Stroke="#059669" StrokeThickness="2" StrokeShape="RoundRectangle 16" Padding="20">
+                <VerticalStackLayout Spacing="14">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Grid.Column="0" Text="💵 Gestión y Arqueo de Caja" FontSize="18" FontAttributes="Bold" TextColor="#0F172A" VerticalOptions="Center" />
+                        <Button Grid.Column="1" Text="❌ Cerrar" Clicked="OnCerrarModalCajaClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32"/>
+                    </Grid>
+
+                    <!-- Estado Caja Cerrada / Formulario Apertura -->
+                    <VerticalStackLayout x:Name="CajaAperturaStack" IsVisible="True" Spacing="12">
+                        <Border BackgroundColor="#FEF3C7" Stroke="#D97706" StrokeThickness="1" StrokeShape="RoundRectangle 8" Padding="12">
+                            <Label Text="⚠️ No hay un turno de caja abierto. Ingrese el base/monto inicial para abrir el turno:" FontSize="12" TextColor="#92400E" />
+                        </Border>
+                        
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Monto Inicial / Fondo de Caja ($)" FontSize="12" FontAttributes="Bold" TextColor="#334155" />
+                            <Entry x:Name="MontoInicialEntry" Text="100000" Keyboard="Numeric" HeightRequest="44" TextColor="#0F172A" BackgroundColor="#F1F5F9" />
+                        </VerticalStackLayout>
+
+                        <Button Text="🔓 Abrir Turno de Caja" Clicked="OnAbrirTurnoCajaClicked" BackgroundColor="#059669" TextColor="White" FontAttributes="Bold" HeightRequest="45" CornerRadius="8"/>
+                    </VerticalStackLayout>
+
+                    <!-- Estado Caja Abierta / Resumen & Conteo de Cierre -->
+                    <VerticalStackLayout x:Name="CajaAbiertaStack" IsVisible="False" Spacing="12">
+                        <Border BackgroundColor="#ECFDF5" Stroke="#10B981" StrokeThickness="1" StrokeShape="RoundRectangle 10" Padding="12">
+                            <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto" ColumnDefinitions="*, Auto" RowSpacing="6">
+                                <Label Grid.Row="0" Grid.Column="0" Text="Monto Inicial (Base):" TextColor="#065F46"/>
+                                <Label Grid.Row="0" Grid.Column="1" x:Name="CajaBaseLabel" Text="$0.00" FontAttributes="Bold" TextColor="#047857"/>
+
+                                <Label Grid.Row="1" Grid.Column="0" Text="Ventas Efectivo:" TextColor="#065F46"/>
+                                <Label Grid.Row="1" Grid.Column="1" x:Name="CajaVentasEfectivoLabel" Text="$0.00" FontAttributes="Bold" TextColor="#047857"/>
+
+                                <Label Grid.Row="2" Grid.Column="0" Text="Abonos Recibidos:" TextColor="#065F46"/>
+                                <Label Grid.Row="2" Grid.Column="1" x:Name="CajaAbonosLabel" Text="$0.00" FontAttributes="Bold" TextColor="#047857"/>
+
+                                <Label Grid.Row="3" Grid.Column="0" Text="Ingresos / Egresos Manuales:" TextColor="#065F46"/>
+                                <Label Grid.Row="3" Grid.Column="1" x:Name="CajaMovimientosLabel" Text="$0.00" FontAttributes="Bold" TextColor="#047857"/>
+
+                                <Label Grid.Row="4" Grid.Column="0" Text="EFECTIVO ESPERADO EN CAJA:" FontAttributes="Bold" TextColor="#064E3B"/>
+                                <Label Grid.Row="4" Grid.Column="1" x:Name="CajaEfectivoEsperadoLabel" Text="$0.00" FontSize="16" FontAttributes="Bold" TextColor="#059669"/>
+                            </Grid>
+                        </Border>
+
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Conteo Real de Efectivo en Caja ($)" FontSize="12" FontAttributes="Bold" TextColor="#334155" />
+                            <Entry x:Name="EfectivoRealEntry" Placeholder="Ingrese monto real contado" Keyboard="Numeric" HeightRequest="45" TextColor="#0F172A" BackgroundColor="#F1F5F9" />
+                        </VerticalStackLayout>
+
+                        <Button Text="🔒 Realizar Cierre de Caja (Arqueo Z)" Clicked="OnCerrarTurnoCajaClicked" BackgroundColor="#EF4444" TextColor="White" FontAttributes="Bold" HeightRequest="45" CornerRadius="8"/>
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+
+        <!-- Modal Overlay Cuentas por Cobrar & Abonos -->
+        <Grid x:Name="ModalCuentasOverlay" Grid.Row="0" Grid.RowSpan="2" ZIndex="1002" IsVisible="False" BackgroundColor="#D00F172A" HorizontalOptions="Fill" VerticalOptions="Fill">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="550" MaximumHeightRequest="600" Margin="12" BackgroundColor="White" Stroke="#D97706" StrokeThickness="2" StrokeShape="RoundRectangle 16" Padding="20">
+                <Grid RowDefinitions="Auto, *, Auto" RowSpacing="12">
+                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                        <Label Grid.Column="0" Text="💳 Cuentas por Cobrar &amp; Abonos" FontSize="18" FontAttributes="Bold" TextColor="#0F172A" VerticalOptions="Center"/>
+                        <Button Grid.Column="1" Text="❌ Cerrar" Clicked="OnCerrarModalCuentasClicked" BackgroundColor="#E2E8F0" TextColor="#0F172A" FontSize="11" HeightRequest="32"/>
+                    </Grid>
+
+                    <CollectionView Grid.Row="1" x:Name="CuentasCollectionView">
+                        <CollectionView.EmptyView>
+                            <Label Text="No hay clientes con saldos pendientes o créditos activos" TextColor="#94A3B8" HorizontalOptions="Center" VerticalOptions="Center" Margin="20"/>
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Stroke="#FDE68A" StrokeShape="RoundRectangle 10" Padding="12" Margin="0,4" BackgroundColor="#FFFBEB">
+                                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto">
+                                        <VerticalStackLayout Grid.Row="0" Grid.Column="0" Spacing="2">
+                                            <Label Text="{Binding ClienteNombre}" FontAttributes="Bold" FontSize="14" TextColor="#78350F"/>
+                                            <Label Text="{Binding DocumentoIdentidad, StringFormat='NIT: {0}'}" FontSize="12" TextColor="#92400E"/>
+                                        </VerticalStackLayout>
+                                        
+                                        <VerticalStackLayout Grid.Row="0" Grid.Column="1" HorizontalOptions="End" Spacing="2">
+                                            <Label Text="{Binding SaldoPendiente, StringFormat='Deuda: ${0:N2}'}" FontAttributes="Bold" FontSize="14" TextColor="#DC2626" HorizontalOptions="End"/>
+                                            <Label Text="{Binding LimiteCredito, StringFormat='Límite: ${0:N2}'}" FontSize="11" TextColor="#78350F" HorizontalOptions="End"/>
+                                        </VerticalStackLayout>
+
+                                        <Button Grid.Row="1" Grid.ColumnSpan="2" Text="💵 Registrar Abono a la Deuda" Clicked="OnRegistrarAbonoClienteClicked" CommandParameter="{Binding .}" BackgroundColor="#D97706" TextColor="White" FontAttributes="Bold" FontSize="12" HeightRequest="36" Margin="0,8,0,0" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <Border Grid.Row="2" BackgroundColor="#F8FAFC" Stroke="#CBD5E1" StrokeThickness="1" StrokeShape="RoundRectangle 8" Padding="10">
+                        <Label Text="💡 Los abonos abonados reducen inmediatamente la deuda del cliente y se suman al flujo de caja activo." FontSize="11" TextColor="#475569" HorizontalOptions="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+    </Grid>
+</ContentPage>

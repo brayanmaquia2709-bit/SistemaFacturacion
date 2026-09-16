@@ -1,0 +1,297 @@
+@page "/cotizaciones"
+@rendermode InteractiveServer
+@using SistemaFacturacion.Core.Entities
+
+@using SistemaFacturacion.Core.DTOs
+@using SistemaFacturacion.Blazor.Services
+@inject FacturacionApiService ApiService
+@inject NavigationManager NavManager
+
+<PageTitle>Cotizaciones / Proformas</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-file-earmark-text text-primary me-2"></i>Cotizaciones / Proformas</h2>
+        <p class="text-muted mb-0">Crea cotizaciones para tus clientes y conviértelas a factura en 1 clic</p>
+    </div>
+    <button class="btn btn-primary" @onclick="AbrirModalNuevaCotizacion">
+        <i class="bi bi-plus-lg me-1"></i> Nueva Cotización
+    </button>
+</div>
+
+@if (mensaje != null)
+{
+    <div class="alert alert-@tipoAlerta alert-dismissible fade show" role="alert">
+        @mensaje
+        <button type="button" class="btn-close" @onclick="() => mensaje = null"></button>
+    </div>
+}
+
+@if (cargando)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Cargando cotizaciones...</p>
+    </div>
+}
+else if (!cotizaciones.Any())
+{
+    <div class="card shadow-sm text-center py-5">
+        <div class="card-body">
+            <i class="bi bi-file-earmark-code display-1 text-muted"></i>
+            <h4 class="mt-3">No hay cotizaciones registradas</h4>
+            <p class="text-muted">Crea una nueva cotización pre-factura para enviar a tus clientes.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>N° Cotización</th>
+                        <th>Fecha</th>
+                        <th>Vencimiento</th>
+                        <th>Cliente</th>
+                        <th class="text-end">Subtotal</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-center">Estado</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in cotizaciones)
+                    {
+                        <tr>
+                            <td class="fw-bold text-primary">@c.NumeroCotizacion</td>
+                            <td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@c.FechaVencimiento.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <div class="fw-semibold">@c.Cliente?.Nombre</div>
+                                <div class="small text-muted">@c.Cliente?.Email</div>
+                            </td>
+                            <td class="text-end">$@c.Subtotal.ToString("N2")</td>
+                            <td class="text-end fw-bold text-primary">$@c.Total.ToString("N2")</td>
+                            <td class="text-center">
+                                @if (c.Estado == "Convertida")
+                                {
+                                    <span class="badge bg-success">Convertida a Factura</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if (c.Estado == "Pendiente")
+                                {
+                                    <button class="btn btn-sm btn-success" @onclick="() => ConvertirAFactura(c.Id)">
+                                        ⚡ Convertir a Factura
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Finalizada</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@* Modal Nueva Cotización *@
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">📝 Crear Nueva Cotización</h5>
+                    <button type="button" class="btn-close" @onclick="() => mostrarModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Cliente</label>
+                        <select class="form-select" @bind="clienteSeleccionadoId">
+                            <option value="0">-- Seleccione un Cliente --</option>
+                            @foreach (var cli in clientes)
+                            {
+                                <option value="@cli.Id">@cli.Nombre (@cli.Email)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <h6 class="fw-bold mt-4 mb-2">Agregar Productos</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <select class="form-select" @bind="productoSeleccionadoId">
+                                <option value="0">-- Seleccione Producto --</option>
+                                @foreach (var p in productos)
+                                {
+                                    <option value="@p.Id">@p.Nombre - $@p.Precio.ToString("N2")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" class="form-control" placeholder="Cantidad" @bind="cantidadInput" min="1" />
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-outline-success w-100" @onclick="AgregarProductoACotizacion">
+                                ➕ Agregar
+                            </button>
+                        </div>
+                    </div>
+
+                    <table class="table table-sm table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-end">Precio Unit.</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-center">Quitar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in detallesCotizacion)
+                            {
+                                var prod = productos.FirstOrDefault(p => p.Id == item.ProductoId);
+                                <tr>
+                                    <td>@prod?.Nombre</td>
+                                    <td class="text-center">@item.Cantidad</td>
+                                    <td class="text-end">$@prod?.Precio.ToString("N2")</td>
+                                    <td class="text-end">$@((prod?.Precio ?? 0) * item.Cantidad)</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => detallesCotizacion.Remove(item)">❌</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Notas / Términos de Cotización</label>
+                        <textarea class="form-control" rows="2" @bind="notasInput" placeholder="Válido por 15 días. Sujeto a disponibilidad de inventario."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => mostrarModal = false">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="GuardarCotizacion">💾 Guardar Cotización</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Cotizacion> cotizaciones = new();
+    private List<Cliente> clientes = new();
+    private List<Producto> productos = new();
+    private bool cargando = true;
+    private bool mostrarModal = false;
+    private string? mensaje;
+    private string tipoAlerta = "info";
+
+    private int clienteSeleccionadoId = 0;
+    private int productoSeleccionadoId = 0;
+    private int cantidadInput = 1;
+    private string notasInput = "";
+    private List<DetalleCotizacionCreateDto> detallesCotizacion = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            cotizaciones = await ApiService.GetCotizacionesAsync();
+            clientes = await ApiService.GetClientesAsync();
+            productos = await ApiService.GetProductosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"Error al cargar datos: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirModalNuevaCotizacion()
+    {
+        clienteSeleccionadoId = 0;
+        detallesCotizacion.Clear();
+        notasInput = "";
+        mostrarModal = true;
+    }
+
+    private void AgregarProductoACotizacion()
+    {
+        if (productoSeleccionadoId <= 0 || cantidadInput <= 0) return;
+        detallesCotizacion.Add(new DetalleCotizacionCreateDto
+        {
+            ProductoId = productoSeleccionadoId,
+            Cantidad = cantidadInput
+        });
+        productoSeleccionadoId = 0;
+        cantidadInput = 1;
+    }
+
+    private async Task GuardarCotizacion()
+    {
+        if (clienteSeleccionadoId <= 0 || !detallesCotizacion.Any())
+        {
+            mensaje = "Debe seleccionar un cliente y al menos un producto.";
+            tipoAlerta = "warning";
+            return;
+        }
+
+        var dto = new CotizacionCreateDto
+        {
+            ClienteId = clienteSeleccionadoId,
+            Notas = notasInput,
+            Detalles = detallesCotizacion
+        };
+
+        var res = await ApiService.CrearCotizacionAsync(dto);
+        if (res != null)
+        {
+            mensaje = $"Cotización #{res.NumeroCotizacion} creada exitosamente.";
+            tipoAlerta = "success";
+            mostrarModal = false;
+            await CargarDatos();
+        }
+        else
+        {
+            mensaje = "Error al crear la cotización.";
+            tipoAlerta = "danger";
+        }
+    }
+
+    private async Task ConvertirAFactura(int cotizacionId)
+    {
+        var factura = await ApiService.ConvertirCotizacionAFacturaAsync(cotizacionId);
+        if (factura != null)
+        {
+            mensaje = $"Cotización convertida con éxito a Factura #{factura.NumeroFactura} por un total de ${factura.Total:N2}";
+            tipoAlerta = "success";
+            await CargarDatos();
+        }
+        else
+        {
+            mensaje = "No se pudo convertir la cotización a factura. Verifique disponibilidad de stock.";
+            tipoAlerta = "danger";
+        }
+    }
+}

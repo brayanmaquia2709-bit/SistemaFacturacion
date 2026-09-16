@@ -1,0 +1,165 @@
+@page "/cuentas-por-cobrar"
+@rendermode InteractiveServer
+@using SistemaFacturacion.Core.DTOs
+@using SistemaFacturacion.Core.Entities
+@using SistemaFacturacion.Blazor.Services
+@inject FacturacionApiService ApiService
+
+<PageTitle>Cuentas por Cobrar & Créditos - POS</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-0">💳 Gestor de Cuentas por Cobrar &amp; Crédito a Clientes</h2>
+            <p class="text-muted small mb-0">Administre límites de crédito, consulte saldos pendientes y registre abonos de clientes.</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning text-dark">
+                <div class="card-body p-4">
+                    <span class="badge bg-dark text-white fw-bold mb-2">DEUDA TOTAL</span>
+                    <h3 class="fw-bold">$@cuentas.Sum(c => c.SaldoPendiente).ToString("N2")</h3>
+                    <p class="mb-0 text-dark-50">Suma total de créditos concedidos pendientes de cobro</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-indigo text-white">
+                <div class="card-body p-4">
+                    <span class="badge bg-white text-primary fw-bold mb-2">CLIENTES CON CRÉDITO</span>
+                    <h3 class="fw-bold">@cuentas.Count(c => c.SaldoPendiente > 0)</h3>
+                    <p class="mb-0 text-white-50">Clientes activos con saldos pendientes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold mb-0">📋 Lista de Cuentas por Cobrar</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Documento / NIT</th>
+                        <th>Teléfono</th>
+                        <th>Límite de Crédito</th>
+                        <th>Saldo Pendiente</th>
+                        <th>Facturas Pendientes</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in cuentas)
+                    {
+                        <tr>
+                            <td><strong class="text-dark">@c.ClienteNombre</strong></td>
+                            <td>@c.DocumentoIdentidad</td>
+                            <td>@c.Telefono</td>
+                            <td>$@c.LimiteCredito.ToString("N2")</td>
+                            <td>
+                                <strong class="text-danger fs-6">$@c.SaldoPendiente.ToString("N2")</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning text-dark">@c.FacturasPendientesCount facturas</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-warning fw-bold" @onclick="() => AbrirModalAbono(c)">
+                                    💵 Registrar Abono
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (clienteSeleccionado != null)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header border-0 bg-warning text-dark rounded-top-4">
+                    <h5 class="modal-title fw-bold">💵 Registrar Abono a @clienteSeleccionado.ClienteNombre</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalAbono"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2">
+                        Deuda actual pendiente: <strong>$@clienteSeleccionado.SaldoPendiente.ToString("N2")</strong>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Monto del Abono ($)</label>
+                        <input type="number" step="0.01" class="form-control form-control-lg" @bind="montoAbono" placeholder="0.00" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Forma de Pago</label>
+                        <select class="form-select" @bind="formaPagoAbono">
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="Transferencia">Transferencia</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light rounded-3" @onclick="CerrarModalAbono">Cancelar</button>
+                    <button type="button" class="btn btn-warning fw-bold rounded-3" @onclick="GuardarAbono">💾 Confirmar Abono</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CuentaPorCobrarDto> cuentas = new();
+    private CuentaPorCobrarDto? clienteSeleccionado;
+    private decimal montoAbono = 0;
+    private string formaPagoAbono = "Efectivo";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCuentasAsync();
+    }
+
+    private async Task CargarCuentasAsync()
+    {
+        cuentas = await ApiService.GetCuentasPorCobrarAsync();
+    }
+
+    private void AbrirModalAbono(CuentaPorCobrarDto item)
+    {
+        clienteSeleccionado = item;
+        montoAbono = item.SaldoPendiente;
+    }
+
+    private void CerrarModalAbono()
+    {
+        clienteSeleccionado = null;
+    }
+
+    private async Task GuardarAbono()
+    {
+        if (clienteSeleccionado == null || montoAbono <= 0) return;
+
+        var dto = new AbonoCreateDto
+        {
+            ClienteId = clienteSeleccionado.ClienteId,
+            Monto = montoAbono,
+            FormaPago = formaPagoAbono,
+            Notas = "Abono desde Web Admin"
+        };
+
+        await ApiService.RegistrarAbonoAsync(dto);
+
+        CerrarModalAbono();
+        await CargarCuentasAsync();
+    }
+}

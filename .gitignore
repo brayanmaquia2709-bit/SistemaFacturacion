@@ -1,0 +1,29 @@
+## .gitignore para SistemaFacturacion (.NET / MAUI / Blazor)
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+publish/
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+# SQLite Local Database Files
+*.db
+*.db-shm
+*.db-wal
+SistemaFacturacion.API/facturacion.db
+
+# User-specific files
+appsettings.Development.json
+*.cache
+
+# Android generated
+*.apk
+*.aab

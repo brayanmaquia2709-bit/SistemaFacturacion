@@ -1,0 +1,180 @@
+@page "/productos"
+@rendermode InteractiveServer
+@inject FacturacionApiService ApiService
+
+
+<PageTitle>Productos | Facturación Electrónica</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">📦 Catálogo de Productos</h2>
+            <p class="text-muted mb-0">Gestión de productos, precios y control de inventarios/stock.</p>
+        </div>
+        <button class="btn btn-indigo px-4" @onclick="AbrirModalNuevo">
+            ➕ Nuevo Producto
+        </button>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-indigo" role="status"></div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Código</th>
+                            <th>Nombre del Producto</th>
+                            <th>Categoría</th>
+                            <th class="text-end">Precio Unitario</th>
+                            <th class="text-center">Stock</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in productos)
+                        {
+                            <tr>
+                                <td>@p.Id</td>
+                                <td><span class="badge bg-light text-dark border">@p.CodigoBarra</span></td>
+                                <td class="fw-bold text-dark">@p.Nombre</td>
+                                <td><span class="badge bg-info text-dark">@p.Categoria</span></td>
+                                <td class="text-end fw-bold text-indigo">@p.Precio.ToString("C", CultureInfo.GetCultureInfo("es-MX"))</td>
+                                <td class="text-center">
+                                    <span class="badge @(p.Stock > 10 ? "bg-success" : p.Stock > 0 ? "bg-warning text-dark" : "bg-danger") fs-6">
+                                        @p.Stock uds
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => AbrirModalEditar(p)">✏️</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => EliminarProducto(p.Id)">🗑️</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1050;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+                <div class="modal-header bg-indigo text-white">
+                    <h5 class="modal-title fw-bold">@(productoForm.Id == 0 ? "➕ Crear Nuevo Producto" : "✏️ Editar Producto")</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body p-4 bg-white text-dark">
+                    <EditForm Model="productoForm" OnValidSubmit="GuardarProducto">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">Código de Barra / SKU *</label>
+                            <InputText class="form-control text-dark bg-light border" @bind-Value="productoForm.CodigoBarra" placeholder="Ej: PROD-100" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">Nombre del Producto *</label>
+                            <InputText class="form-control text-dark bg-light border" @bind-Value="productoForm.Nombre" placeholder="Ej: Monitor 24 pulgadas" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">Categoría</label>
+                            <InputText class="form-control text-dark bg-light border" @bind-Value="productoForm.Categoria" placeholder="Ej: Electrónica, Oficina" />
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-dark">Precio ($) *</label>
+                                <InputNumber class="form-control text-dark bg-light border" @bind-Value="productoForm.Precio" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-dark">Stock Inicial *</label>
+                                <InputNumber class="form-control text-dark bg-light border" @bind-Value="productoForm.Stock" required />
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 pt-3">
+                            <button type="button" class="btn btn-secondary px-4 fw-bold" @onclick="CerrarModal">Cancelar</button>
+                            <button type="submit" class="btn btn-indigo px-4 fw-bold">💾 Guardar</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool cargando = true;
+    private List<Producto> productos = new();
+    private bool mostrarModal = false;
+    private Producto productoForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProductosAsync();
+    }
+
+    private async Task CargarProductosAsync()
+    {
+        cargando = true;
+        try
+        {
+            productos = await ApiService.GetProductosAsync();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirModalNuevo()
+    {
+        productoForm = new Producto { Precio = 0, Stock = 10 };
+        mostrarModal = true;
+    }
+
+    private void AbrirModalEditar(Producto p)
+    {
+        productoForm = new Producto
+        {
+            Id = p.Id,
+            CodigoBarra = p.CodigoBarra,
+            Nombre = p.Nombre,
+            Categoria = p.Categoria,
+            Precio = p.Precio,
+            Stock = p.Stock
+        };
+        mostrarModal = true;
+    }
+
+    private void CerrarModal() => mostrarModal = false;
+
+    private async Task GuardarProducto()
+    {
+        if (productoForm.Id == 0)
+        {
+            await ApiService.CrearProductoAsync(productoForm);
+        }
+        else
+        {
+            await ApiService.ActualizarProductoAsync(productoForm);
+        }
+        mostrarModal = false;
+        await CargarProductosAsync();
+    }
+
+    private async Task EliminarProducto(int id)
+    {
+        await ApiService.EliminarProductoAsync(id);
+        await CargarProductosAsync();
+    }
+}
