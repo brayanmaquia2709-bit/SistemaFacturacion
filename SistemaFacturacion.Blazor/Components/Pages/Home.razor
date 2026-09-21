@@ -9,515 +9,557 @@
 <PageTitle>Sistema de Facturación & POS Empresarial (COP)</PageTitle>
 
 <div class="container-fluid p-0">
-    <!-- BARRA DE PESTAÑAS / BOTONES DE CONMUTACIÓN DE INTERFAZ ESTILO MAUI -->
-    <div class="row g-2 mb-3">
-        <div class="col-md-4">
-            <button class="btn w-100 fw-bold py-2 shadow-sm rounded-3 text-white d-flex align-items-center justify-content-center gap-2 @(activeTab == "cajero" ? "opacity-100 border border-3 border-white" : "opacity-75")"
-                    style="background-color: #15803D;"
-                    @onclick='() => activeTab = "cajero"'>
-                🛒 Interfaz POS (Cajero)
-            </button>
-        </div>
-        <div class="col-md-4">
-            <button class="btn w-100 fw-bold py-2 shadow-sm rounded-3 text-white d-flex align-items-center justify-content-center gap-2 @(activeTab == "admin" ? "opacity-100 border border-3 border-white" : "opacity-75")"
-                    style="background-color: #1E40AF;"
-                    @onclick='() => activeTab = "admin"'>
-                📊 Dashboard (Administrador)
-            </button>
-        </div>
-        <div class="col-md-4">
-            <button class="btn w-100 fw-bold py-2 shadow-sm rounded-3 text-white d-flex align-items-center justify-content-center gap-2 @(activeTab == "dual" ? "opacity-100 border border-3 border-white" : "opacity-75")"
-                    style="background-color: #475569;"
-                    @onclick='() => activeTab = "dual"'>
-                🔳 Vista Dual
-            </button>
-        </div>
-    </div>
 
-    <!-- MAIN DUAL/SINGLE LAYOUT GRID -->
-    <div class="row g-3">
-        
-        <!-- ========================================================================= -->
-        <!-- COLUMNA IZQUIERDA: INTERFAZ DEL CAJERO (DARK THEME POS TERMINAL #111827)   -->
-        <!-- ========================================================================= -->
-        @if (activeTab == "cajero" || activeTab == "dual")
-        {
-            <div class="@(activeTab == "dual" ? "col-xl-6" : "col-12")">
-                <div class="card border-0 shadow-lg rounded-4 p-3 text-white" style="background-color: #111827; border: 1px solid #1F2937;">
-                    
-                    <!-- Header POS -->
-                    <div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom border-secondary">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="fs-5 text-secondary">☰</span>
-                            <h5 class="fw-bold mb-0 text-white">Punto de Venta POS</h5>
+    <!-- ========================================================================= -->
+    <!-- ESTADO 1: SIN SESIÓN INICIADA (PANTALLA DE BLOQUEO DE SESIÓN)             -->
+    <!-- ========================================================================= -->
+    @if (usuarioLogueado == null)
+    {
+        <div class="card border-0 shadow-lg rounded-4 p-5 text-center mx-auto my-4" style="max-width: 540px; background-color: #111827; border: 1px solid #1F2937; color: white;">
+            <div class="fs-1 text-warning mb-3">🔒</div>
+            <h3 class="fw-bold text-white mb-2">Sesión Requerida</h3>
+            <p class="text-secondary small mb-4">
+                El sistema de facturación y POS requiere autenticación. Cada cajero o administrador debe ingresar su usuario y contraseña para acceder a sus funciones asignadas.
+            </p>
+
+            <button class="btn btn-emerald text-white fw-bold py-3 px-4 fs-6 rounded-3 shadow-sm" style="background-color: #10B981;" @onclick="AbrirModalLogin">
+                🔑 Iniciar Sesión en el Sistema
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- BARRA SUPERIOR DE INFORMACIÓN DE USUARIO Y CONMUTADOR DE ROLES -->
+        <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3 shadow-sm text-white" style="background-color: #0F172A;">
+            <div class="d-flex align-items-center gap-2">
+                @if (esAdmin)
+                {
+                    <span class="badge text-white px-3 py-2 fs-7 fw-bold rounded-pill" style="background-color: #10B981;">
+                        🛡️ Administrador: @usuarioLogueado.Nombre (Acceso Total)
+                    </span>
+                }
+                else
+                {
+                    <span class="badge text-white px-3 py-2 fs-7 fw-bold rounded-pill" style="background-color: #3B82F6;">
+                        👤 Cajero: @usuarioLogueado.Nombre (Operativa POS Exclusiva)
+                    </span>
+                }
+            </div>
+
+            <button class="btn btn-sm btn-outline-danger fw-bold rounded-3 px-3" @onclick="CerrarSesion">
+                🚪 Cerrar Sesión
+            </button>
+        </div>
+
+        <!-- BARRA DE PESTAÑAS / BOTONES DE CONMUTACIÓN DE INTERFAZ -->
+        <div class="row g-2 mb-3">
+            <div class="@(esAdmin ? "col-md-4" : "col-12")">
+                <button class="btn w-100 fw-bold py-2 shadow-sm rounded-3 text-white d-flex align-items-center justify-content-center gap-2 @(activeTab == "cajero" ? "opacity-100 border border-3 border-white" : "opacity-75")"
+                        style="background-color: #15803D;"
+                        @onclick='() => activeTab = "cajero"'>
+                    🛒 Interfaz POS (Cajero)
+                </button>
+            </div>
+
+            @if (esAdmin)
+            {
+                <div class="col-md-4">
+                    <button class="btn w-100 fw-bold py-2 shadow-sm rounded-3 text-white d-flex align-items-center justify-content-center gap-2 @(activeTab == "admin" ? "opacity-100 border border-3 border-white" : "opacity-75")"
+                            style="background-color: #1E40AF;"
+                            @onclick='() => activeTab = "admin"'>
+                        📊 Dashboard (Administrador)
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn w-100 fw-bold py-2 shadow-sm rounded-3 text-white d-flex align-items-center justify-content-center gap-2 @(activeTab == "dual" ? "opacity-100 border border-3 border-white" : "opacity-75")"
+                            style="background-color: #475569;"
+                            @onclick='() => activeTab = "dual"'>
+                        🔳 Vista Dual
+                    </button>
+                </div>
+            }
+        </div>
+
+        <!-- MAIN DUAL/SINGLE LAYOUT GRID -->
+        <div class="row g-3">
+            
+            <!-- ========================================================================= -->
+            <!-- VISTA 1: INTERFAZ EXCLUSIVA DEL CAJERO (DARK THEME POS TERMINAL #111827)    -->
+            <!-- ========================================================================= -->
+            @if (activeTab == "cajero" || (esAdmin && activeTab == "dual"))
+            {
+                <div class="@(esAdmin && activeTab == "dual" ? "col-xl-6" : "col-12")">
+                    <div class="card border-0 shadow-lg rounded-4 p-3 text-white" style="background-color: #111827; border: 1px solid #1F2937;">
+                        
+                        <!-- Header POS -->
+                        <div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom border-secondary">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fs-5 text-secondary">☰</span>
+                                <h5 class="fw-bold mb-0 text-white">Punto de Venta POS - Terminal Cajero</h5>
+                            </div>
+                            <div>
+                                <span class="badge text-white px-3 py-2 fw-bold rounded-pill" style="background-color: #059669;">
+                                    👤 Operador: @usuarioLogueado.Nombre
+                                </span>
+                            </div>
                         </div>
-                        <div class="d-flex align-items-center gap-2">
-                            @if (usuarioLogueado == null)
-                            {
-                                <span class="badge bg-danger text-white px-3 py-2 fw-bold rounded-pill cursor-pointer" @onclick="AbrirModalLogin">🔒 Sesión Bloqueada</span>
-                            }
-                            else
-                            {
-                                <span class="badge text-white px-3 py-2 fw-bold rounded-pill" style="background-color: #059669;">👤 @usuarioLogueado.Nombre (@usuarioLogueado.Rol)</span>
-                                <button class="btn btn-sm btn-outline-danger p-1 rounded-circle ms-1" @onclick="CerrarSesion" title="Cerrar Sesión">🚪</button>
-                            }
-                        </div>
-                    </div>
 
-                    <div class="row g-3">
-                        <!-- Columna POS Controles: Filtros, Buscador, Catálogo, Clientes -->
-                        <div class="col-lg-7">
-                            <div class="d-flex flex-column gap-3">
-                                
-                                <!-- CONTENEDOR 1: BÚSQUEDA Y SELECCIÓN DE CLIENTE -->
-                                <div class="p-3 rounded-3" style="background-color: #1F2937; border: 1px solid #374151;">
-                                    <h6 class="fw-bold text-white mb-2 fs-7">🔎 Búsqueda & Clientes</h6>
+                        <div class="row g-3">
+                            <!-- Columna POS Controles: Filtros, Buscador, Catálogo, Clientes -->
+                            <div class="col-lg-7">
+                                <div class="d-flex flex-column gap-3">
+                                    
+                                    <!-- CONTENEDOR 1: BÚSQUEDA Y SELECCIÓN DE CLIENTE -->
+                                    <div class="p-3 rounded-3" style="background-color: #1F2937; border: 1px solid #374151;">
+                                        <h6 class="fw-bold text-white mb-2 fs-7">🔎 Búsqueda & Clientes</h6>
 
-                                    <!-- Buscador por SKU/Nombre -->
-                                    <div class="input-group mb-2" style="background-color: #111827; border-radius: 8px; border: 1px solid #374151;">
-                                        <span class="input-group-text bg-transparent border-0 text-secondary">🔍</span>
-                                        <input type="text" class="form-control bg-transparent border-0 text-white shadow-none"
-                                               placeholder="Buscar por nombre o SKU..."
-                                               @bind="busquedaFiltro" @bind:event="oninput" />
-                                    </div>
+                                        <!-- Buscador por SKU/Nombre -->
+                                        <div class="input-group mb-2" style="background-color: #111827; border-radius: 8px; border: 1px solid #374151;">
+                                            <span class="input-group-text bg-transparent border-0 text-secondary">🔍</span>
+                                            <input type="text" class="form-control bg-transparent border-0 text-white shadow-none"
+                                                   placeholder="Buscar por nombre o SKU..."
+                                                   @bind="busquedaFiltro" @bind:event="oninput" />
+                                        </div>
 
-                                    <!-- Selector Categoria -->
-                                    <div class="input-group mb-2" style="background-color: #111827; border-radius: 8px; border: 1px solid #374151;">
-                                        <span class="input-group-text bg-transparent border-0 text-secondary">📊</span>
-                                        <select class="form-select bg-transparent border-0 text-white shadow-none" @bind="categoriaFiltro">
-                                            <option value="" class="bg-dark text-white">Todas las Categorías</option>
-                                            @foreach (var cat in categoriasDisponibles)
-                                            {
-                                                <option value="@cat" class="bg-dark text-white">@cat</option>
-                                            }
-                                        </select>
-                                    </div>
-
-                                    <!-- Selector de Cliente + Botón Registrar Cliente -->
-                                    <div class="d-flex gap-2">
-                                        <div class="input-group flex-grow-1" style="background-color: #111827; border-radius: 8px; border: 1px solid #374151;">
-                                            <span class="input-group-text bg-transparent border-0 text-info">👤</span>
-                                            <select class="form-select bg-transparent border-0 text-white shadow-none" @bind="clienteSeleccionadoId">
-                                                <option value="0" class="bg-dark text-white">Cliente General (Mostrador)</option>
-                                                @foreach (var cli in clientes)
+                                        <!-- Selector Categoria -->
+                                        <div class="input-group mb-2" style="background-color: #111827; border-radius: 8px; border: 1px solid #374151;">
+                                            <span class="input-group-text bg-transparent border-0 text-secondary">📊</span>
+                                            <select class="form-select bg-transparent border-0 text-white shadow-none" @bind="categoriaFiltro">
+                                                <option value="" class="bg-dark text-white">Todas las Categorías</option>
+                                                @foreach (var cat in categoriasDisponibles)
                                                 {
-                                                    <option value="@cli.Id" class="bg-dark text-white">@cli.Nombre (@cli.DocumentoIdentidad)</option>
+                                                    <option value="@cat" class="bg-dark text-white">@cat</option>
                                                 }
                                             </select>
                                         </div>
-                                        <button class="btn text-white fw-bold px-3 rounded-3" style="background-color: #0284C7;" @onclick="AbrirModalNuevoCliente">
-                                            👤➕
-                                        </button>
-                                    </div>
-                                </div>
 
-                                <!-- CONTENEDOR 2: CATÁLOGO DINÁMICO DE PRODUCTOS (GRID) -->
-                                <div class="p-3 rounded-3" style="background-color: #1F2937; border: 1px solid #374151;">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="fw-bold text-white fs-7">📦 Catálogo de Productos (Base de Datos)</span>
-                                        <span class="badge text-emerald fs-8" style="color: #10B981; background-color: rgba(16, 185, 129, 0.1);">Tocar para agregar ➕</span>
-                                    </div>
-
-                                    <div class="overflow-auto pe-1" style="max-height: 280px;">
-                                        @if (!productosFiltrados.Any())
-                                        {
-                                            <div class="text-center py-4 text-secondary">
-                                                <div class="fs-2">📦</div>
-                                                <small>No se encontraron productos en la base de datos.</small>
+                                        <!-- Selector de Cliente + Botón Registrar Cliente -->
+                                        <div class="d-flex gap-2">
+                                            <div class="input-group flex-grow-1" style="background-color: #111827; border-radius: 8px; border: 1px solid #374151;">
+                                                <span class="input-group-text bg-transparent border-0 text-info">👤</span>
+                                                <select class="form-select bg-transparent border-0 text-white shadow-none" @bind="clienteSeleccionadoId">
+                                                    <option value="0" class="bg-dark text-white">Cliente General (Mostrador)</option>
+                                                    @foreach (var cli in clientes)
+                                                    {
+                                                        <option value="@cli.Id" class="bg-dark text-white">@cli.Nombre (@cli.DocumentoIdentidad)</option>
+                                                    }
+                                                </select>
                                             </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="row g-2">
-                                                @foreach (var prod in productosFiltrados)
-                                                {
-                                                    <div class="col-6">
-                                                        <div class="p-2 rounded-3 cursor-pointer h-100 d-flex flex-column justify-content-between"
-                                                             style="background-color: #111827; border: 1px solid #374151; cursor: pointer;"
-                                                             @onclick="() => AgregarAlCarrito(prod)">
-                                                            <div>
-                                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                                    <span class="badge text-info fs-8 text-truncate" style="max-width: 70px; background-color: rgba(56, 189, 248, 0.1);">@prod.Categoria</span>
-                                                                    <span class="badge text-white fs-8" style="background-color: @(prod.Stock <= 5 ? "#DC2626" : "#059669");">Stock: @prod.Stock</span>
+                                            <button class="btn text-white fw-bold px-3 rounded-3" style="background-color: #0284C7;" @onclick="AbrirModalNuevoCliente">
+                                                👤➕
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- CONTENEDOR 2: CATÁLOGO DINÁMICO DE PRODUCTOS (GRID) -->
+                                    <div class="p-3 rounded-3" style="background-color: #1F2937; border: 1px solid #374151;">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="fw-bold text-white fs-7">📦 Catálogo de Productos</span>
+                                            <span class="badge text-emerald fs-8" style="color: #10B981; background-color: rgba(16, 185, 129, 0.1);">Tocar para agregar ➕</span>
+                                        </div>
+
+                                        <div class="overflow-auto pe-1" style="max-height: 280px;">
+                                            @if (!productosFiltrados.Any())
+                                            {
+                                                <div class="text-center py-4 text-secondary">
+                                                    <div class="fs-2">📦</div>
+                                                    <small>No se encontraron productos en la base de datos.</small>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="row g-2">
+                                                    @foreach (var prod in productosFiltrados)
+                                                    {
+                                                        <div class="col-6">
+                                                            <div class="p-2 rounded-3 cursor-pointer h-100 d-flex flex-column justify-content-between"
+                                                                 style="background-color: #111827; border: 1px solid #374151; cursor: pointer;"
+                                                                 @onclick="() => AgregarAlCarrito(prod)">
+                                                                <div>
+                                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                                        <span class="badge text-info fs-8 text-truncate" style="max-width: 70px; background-color: rgba(56, 189, 248, 0.1);">@prod.Categoria</span>
+                                                                        <span class="badge text-white fs-8" style="background-color: @(prod.Stock <= 5 ? "#DC2626" : "#059669");">Stock: @prod.Stock</span>
+                                                                    </div>
+                                                                    <div class="fw-bold text-white fs-7 text-truncate mb-1">@prod.Nombre</div>
+                                                                    <div class="text-muted fs-8 text-truncate">SKU: @prod.CodigoBarra</div>
                                                                 </div>
-                                                                <div class="fw-bold text-white fs-7 text-truncate mb-1">@prod.Nombre</div>
-                                                                <div class="text-muted fs-8 text-truncate">SKU: @prod.CodigoBarra</div>
-                                                            </div>
-                                                            <div class="fw-bold fs-6 mt-2" style="color: #10B981;">
-                                                                $ @FormatCOP(prod.Precio) COP
+                                                                <div class="fw-bold fs-6 mt-2" style="color: #10B981;">
+                                                                    $ @FormatCOP(prod.Precio) COP
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                }
-                                            </div>
-                                        }
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
                                     </div>
-                                </div>
 
-                                <!-- CONTENEDOR 3: ACCIONES RÁPIDAS (CANTIDAD Y PAGO) -->
-                                <div class="p-3 rounded-3" style="background-color: #1F2937; border: 1px solid #374151;">
-                                    <div class="row g-2 align-items-center">
-                                        <div class="col-3">
-                                            <input type="number" class="form-control bg-dark text-white border-secondary text-center" min="1" @bind="cantidadSeleccionada" placeholder="Cant" />
+                                    <!-- CONTENEDOR 3: ACCIONES RÁPIDAS (CANTIDAD Y PAGO) -->
+                                    <div class="p-3 rounded-3" style="background-color: #1F2937; border: 1px solid #374151;">
+                                        <div class="row g-2 align-items-center">
+                                            <div class="col-3">
+                                                <input type="number" class="form-control bg-dark text-white border-secondary text-center" min="1" @bind="cantidadSeleccionada" placeholder="Cant" />
+                                            </div>
+                                            <div class="col-4">
+                                                <select class="form-select bg-dark text-white border-secondary text-center" @bind="formaPagoSeleccionada">
+                                                    <option value="Efectivo">Efectivo</option>
+                                                    <option value="Tarjeta de Crédito">Tarjeta Crédito</option>
+                                                    <option value="Tarjeta de Débito">Tarjeta Débito</option>
+                                                    <option value="Transferencia">Transferencia</option>
+                                                    <option value="Crédito">Crédito</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-5">
+                                                <button class="btn text-white fw-bold w-100 py-2 rounded-3" style="background-color: #10B981;" @onclick="LimpiarCarrito">
+                                                    🧹 Limpiar
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div class="col-4">
-                                            <select class="form-select bg-dark text-white border-secondary text-center" @bind="formaPagoSeleccionada">
-                                                <option value="Efectivo">Efectivo</option>
-                                                <option value="Tarjeta de Crédito">Tarjeta Crédito</option>
-                                                <option value="Tarjeta de Débito">Tarjeta Débito</option>
-                                                <option value="Transferencia">Transferencia</option>
-                                                <option value="Crédito">Crédito</option>
-                                            </select>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <!-- Columna POS Carrito y Totales -->
+                            <div class="col-lg-5">
+                                <div class="p-3 rounded-3 h-100 d-flex flex-column justify-content-between" style="background-color: #1F2937; border: 1px solid #374151;">
+                                    <div>
+                                        <h6 class="fw-bold text-white mb-3">🛒 Resumen de Venta</h6>
+
+                                        <!-- Lista de Ítems en Carrito -->
+                                        <div class="overflow-auto mb-3" style="max-height: 220px; min-height: 180px;">
+                                            @if (!carrito.Any())
+                                            {
+                                                <div class="text-center py-4 text-secondary">
+                                                    <div class="fs-2">🛒</div>
+                                                    <small>Carrito de compras vacío</small>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <table class="table table-dark table-hover table-borderless align-middle mb-0 fs-7">
+                                                    <tbody>
+                                                        @foreach (var item in carrito)
+                                                        {
+                                                            <tr>
+                                                                <td class="text-white text-truncate" style="max-width: 100px;">@item.ProductoNombre</td>
+                                                                <td class="text-muted">x@item.Cantidad</td>
+                                                                <td class="fw-bold text-end" style="color: #10B981;">$@FormatCOP(item.Subtotal)</td>
+                                                                <td class="text-end" style="width: 25px;">
+                                                                    <button class="btn btn-sm text-danger p-0 border-0" @onclick="() => EliminarDelCarrito(item)">🗑️</button>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            }
                                         </div>
-                                        <div class="col-5">
-                                            <button class="btn text-white fw-bold w-100 py-2 rounded-3" style="background-color: #10B981;" @onclick="LimpiarCarrito">
-                                                🧹 Limpiar
+                                    </div>
+
+                                    <!-- Totales & Botones Acción POS -->
+                                    <div class="pt-3 border-top border-secondary">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="fw-bold fs-6 text-white">TOTAL:</span>
+                                            <span class="fw-bold fs-4" style="color: #10B981;">$ @FormatCOP(TotalCarrito) COP</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between text-muted fs-8 mb-3">
+                                            <span>Subtotal: $@FormatCOP(SubtotalCarrito) COP</span>
+                                            <span>IVA (19%): $@FormatCOP(ImpuestoCarrito) COP</span>
+                                        </div>
+
+                                        <div class="d-grid gap-2">
+                                            <button class="btn text-white fw-bold py-3 fs-6 rounded-3 shadow"
+                                                    style="background-color: #10B981;"
+                                                    disabled="@(!carrito.Any() || procesandoVenta)"
+                                                    @onclick="CobrarVentaPOS">
+                                                @(procesandoVenta ? "Procesando Venta..." : "Cobrar (F12)")
+                                            </button>
+                                            <button class="btn btn-outline-danger fw-bold py-2 fs-7 rounded-3" @onclick="LimpiarCarrito">
+                                                Cancelar Venta
                                             </button>
                                         </div>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
 
-                        <!-- Columna POS Carrito y Totales -->
-                        <div class="col-lg-5">
-                            <div class="p-3 rounded-3 h-100 d-flex flex-column justify-content-between" style="background-color: #1F2937; border: 1px solid #374151;">
+                    </div>
+                </div>
+            }
+
+            <!-- ========================================================================= -->
+            <!-- VISTA 2: INTERFAZ EXCLUSIVA DEL ADMINISTRADOR (LIGHT THEME DASHBOARD #F8FAFC) -->
+            <!-- ========================================================================= -->
+            @if (esAdmin && (activeTab == "admin" || activeTab == "dual"))
+            {
+                <div class="@(activeTab == "dual" ? "col-xl-6" : "col-12")">
+                    <div class="card border-0 shadow-lg rounded-4 p-3" style="background-color: #F8FAFC; border: 1px solid #CBD5E1;">
+                        
+                        <!-- Header Admin -->
+                        <div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom">
+                            <h5 class="fw-bold mb-0 text-dark">🛡️ Dashboard Administrador</h5>
+                            <button class="btn btn-sm btn-outline-primary rounded-3 px-3 fw-bold" @onclick="CargarDatosAsync">
+                                🔄 Actualizar BD
+                            </button>
+                        </div>
+
+                        <!-- 3 TOP KPI CARDS -->
+                        <div class="row g-2 mb-3">
+                            <!-- KPI 1: Ventas Hoy -->
+                            <div class="col-4">
+                                <div class="p-2 rounded-3 bg-white border shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="fw-bold text-muted" style="font-size: 0.75rem;">🟢 Ventas de Hoy</small>
+                                        <small class="badge bg-success-subtle text-success fw-bold" style="font-size: 0.65rem;">@ventasHoyCount hoy</small>
+                                    </div>
+                                    <div class="fw-bold text-dark fs-6 mt-1">$ @FormatCOP(ventasHoyCOP) COP</div>
+                                </div>
+                            </div>
+
+                            <!-- KPI 2: Pedidos -->
+                            <div class="col-4">
+                                <div class="p-2 rounded-3 bg-white border shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="fw-bold text-muted" style="font-size: 0.75rem;">💡 Total Ventas</small>
+                                        <small class="badge bg-primary-subtle text-primary fw-bold" style="font-size: 0.65rem;">@totalFacturasCount facturas</small>
+                                    </div>
+                                    <div class="fw-bold text-dark fs-5 mt-1">@totalFacturasCount</div>
+                                </div>
+                            </div>
+
+                            <!-- KPI 3: Poco Stock -->
+                            <div class="col-4">
+                                <div class="p-2 rounded-3 bg-white border shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="fw-bold text-muted" style="font-size: 0.75rem;">📝 Poco Stock</small>
+                                        <small class="badge bg-danger-subtle text-danger fw-bold" style="font-size: 0.65rem;">@pocoStockCount prods</small>
+                                    </div>
+                                    <div class="fw-bold text-danger fs-5 mt-1">@pocoStockCount</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GRÁFICOS VISUALES -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-8">
+                                <div class="p-2 rounded-3 bg-white border shadow-sm h-100">
+                                    <small class="fw-bold text-dark d-block mb-2">Resumen de Ventas Recientes</small>
+                                    <div class="d-flex align-items-end justify-content-between px-2 pt-2" style="height: 70px;">
+                                        @for (int i = 0; i < 10; i++)
+                                        {
+                                            var heightPx = GetBarHeight(i);
+                                            <div class="rounded-top bg-primary" style="width: 8%; height: @(heightPx)px; opacity: 0.85;" title="Venta #@(i+1)"></div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 rounded-3 bg-white border shadow-sm h-100 text-center">
+                                    <small class="fw-bold text-dark d-block mb-1">Salud Inventario</small>
+                                    <div class="position-relative d-inline-block my-1">
+                                        <div class="rounded-circle border border-4 d-flex align-items-center justify-content-center fw-bold"
+                                             style="width: 55px; height: 55px; border-color: #10B981 !important; color: #10B981; font-size: 0.8rem;">
+                                            @saludInventarioPct%
+                                        </div>
+                                    </div>
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;">Stock Saludable</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PANEL DE GESTIÓN ADMINISTRATIVA CON SECCIONES -->
+                        <div class="bg-white rounded-3 p-3 border shadow-sm">
+                            <ul class="nav nav-pills nav-fill mb-3 bg-light p-1 rounded-3 fs-7">
+                                <li class="nav-item">
+                                    <button class="nav-link fw-bold @(adminTab == "facturas" ? "active bg-primary text-white" : "text-dark")" @onclick='() => adminTab = "facturas"'>
+                                        📜 Ventas (@facturas.Count)
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link fw-bold @(adminTab == "productos" ? "active bg-primary text-white" : "text-dark")" @onclick='() => adminTab = "productos"'>
+                                        📦 Productos (@productos.Count)
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link fw-bold @(adminTab == "clientes" ? "active bg-primary text-white" : "text-dark")" @onclick='() => adminTab = "clientes"'>
+                                        👥 Clientes (@clientes.Count)
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link fw-bold @(adminTab == "usuarios" ? "active bg-primary text-white" : "text-dark")" @onclick='() => adminTab = "usuarios"'>
+                                        👔 Cajeros
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <!-- TABLA: VENTAS / FACTURAS -->
+                            @if (adminTab == "facturas")
+                            {
                                 <div>
-                                    <h6 class="fw-bold text-white mb-3">🛒 Resumen de Venta</h6>
-
-                                    <!-- Lista de Ítems en Carrito -->
-                                    <div class="overflow-auto mb-3" style="max-height: 220px; min-height: 180px;">
-                                        @if (!carrito.Any())
-                                        {
-                                            <div class="text-center py-4 text-secondary">
-                                                <div class="fs-2">🛒</div>
-                                                <small>Carrito de compras vacío</small>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <table class="table table-dark table-hover table-borderless align-middle mb-0 fs-7">
-                                                <tbody>
-                                                    @foreach (var item in carrito)
-                                                    {
-                                                        <tr>
-                                                            <td class="text-white text-truncate" style="max-width: 100px;">@item.ProductoNombre</td>
-                                                            <td class="text-muted">x@item.Cantidad</td>
-                                                            <td class="fw-bold text-end" style="color: #10B981;">$@FormatCOP(item.Subtotal)</td>
-                                                            <td class="text-end" style="width: 25px;">
-                                                                <button class="btn btn-sm text-danger p-0 border-0" @onclick="() => EliminarDelCarrito(item)">🗑️</button>
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                        }
-                                    </div>
-                                </div>
-
-                                <!-- Totales & Botones Acción POS -->
-                                <div class="pt-3 border-top border-secondary">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="fw-bold fs-6 text-white">TOTAL:</span>
-                                        <span class="fw-bold fs-4" style="color: #10B981;">$ @FormatCOP(TotalCarrito) COP</span>
+                                        <span class="fw-bold fs-7 text-dark">Historial de Facturas Emitidas</span>
+                                        <input type="date" class="form-control form-control-sm w-auto fs-8" @bind="filtroFechaFactura" />
                                     </div>
-                                    <div class="d-flex justify-content-between text-muted fs-8 mb-3">
-                                        <span>Subtotal: $@FormatCOP(SubtotalCarrito) COP</span>
-                                        <span>IVA (19%): $@FormatCOP(ImpuestoCarrito) COP</span>
-                                    </div>
-
-                                    <div class="d-grid gap-2">
-                                        <button class="btn text-white fw-bold py-3 fs-6 rounded-3 shadow"
-                                                style="background-color: #10B981;"
-                                                disabled="@(!carrito.Any() || procesandoVenta)"
-                                                @onclick="CobrarVentaPOS">
-                                            @(procesandoVenta ? "Procesando Venta..." : "Cobrar (F12)")
-                                        </button>
-                                        <button class="btn btn-outline-danger fw-bold py-2 fs-7 rounded-3" @onclick="LimpiarCarrito">
-                                            Cancelar Venta
-                                        </button>
+                                    <div class="table-responsive overflow-auto" style="max-height: 250px;">
+                                        <table class="table table-hover table-striped align-middle fs-8 mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Folio</th>
+                                                    <th>Fecha</th>
+                                                    <th>Cliente</th>
+                                                    <th>Total</th>
+                                                    <th>Estado</th>
+                                                    <th class="text-end">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var fac in facturasFiltradas)
+                                                {
+                                                    <tr>
+                                                        <td class="fw-bold">@fac.NumeroFactura</td>
+                                                        <td>@fac.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                                        <td>@(fac.Cliente?.Nombre ?? "Cliente General")</td>
+                                                        <td class="fw-bold text-success">$@FormatCOP(fac.Total)</td>
+                                                        <td>
+                                                            <span class="badge @(fac.Estado == "Anulada" ? "bg-danger" : "bg-success")">@fac.Estado</span>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            <button class="btn btn-sm btn-outline-primary py-0 px-2 fs-8" @onclick="() => AbrirFacturaPdf(fac)">📄 FE</button>
+                                                            <button class="btn btn-sm btn-outline-dark py-0 px-2 fs-8 ms-1" @onclick="() => AbrirFacturaTicket(fac)">🖨️ POS</button>
+                                                            @if (fac.Estado != "Anulada")
+                                                            {
+                                                                <button class="btn btn-sm btn-outline-danger py-0 px-2 fs-8 ms-1" @onclick="() => AnularFactura(fac)">🚫</button>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
+                            }
 
+                            <!-- TABLA: PRODUCTOS (CRUD) -->
+                            @if (adminTab == "productos")
+                            {
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold fs-7 text-dark">Gestión de Catálogo de Productos</span>
+                                        <button class="btn btn-sm btn-success fw-bold fs-8" @onclick="AbrirModalNuevoProducto">➕ Crear Producto</button>
+                                    </div>
+                                    <div class="table-responsive overflow-auto" style="max-height: 250px;">
+                                        <table class="table table-hover align-middle fs-8 mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>SKU</th>
+                                                    <th>Nombre</th>
+                                                    <th>Categoría</th>
+                                                    <th>Precio (COP)</th>
+                                                    <th>Stock</th>
+                                                    <th class="text-end">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var p in productos)
+                                                {
+                                                    <tr>
+                                                        <td><code>@p.CodigoBarra</code></td>
+                                                        <td class="fw-bold">@p.Nombre</td>
+                                                        <td><span class="badge bg-info text-dark">@p.Categoria</span></td>
+                                                        <td class="fw-bold" style="color: #10B981;">$@FormatCOP(p.Precio)</td>
+                                                        <td><span class="badge @(p.Stock <= 5 ? "bg-danger" : "bg-success")">@p.Stock</span></td>
+                                                        <td class="text-end">
+                                                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 fs-8" @onclick="() => AbrirModalEditarProducto(p)">✏️ Editar</button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- TABLA: CLIENTES (CRUD) -->
+                            @if (adminTab == "clientes")
+                            {
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold fs-7 text-dark">Directorio de Clientes</span>
+                                        <button class="btn btn-sm text-white fw-bold fs-8" style="background-color: #0284C7;" @onclick="AbrirModalNuevoCliente">➕ Nuevo Cliente</button>
+                                    </div>
+                                    <div class="table-responsive overflow-auto" style="max-height: 250px;">
+                                        <table class="table table-hover align-middle fs-8 mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Documento</th>
+                                                    <th>Nombre</th>
+                                                    <th>Email</th>
+                                                    <th>Teléfono</th>
+                                                    <th class="text-end">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var c in clientes)
+                                                {
+                                                    <tr>
+                                                        <td><code>@c.DocumentoIdentidad</code></td>
+                                                        <td class="fw-bold">@c.Nombre</td>
+                                                        <td>@c.Email</td>
+                                                        <td>@c.Telefono</td>
+                                                        <td class="text-end">
+                                                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 fs-8" @onclick="() => AbrirModalEditarCliente(c)">✏️ Editar</button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- TABLA: CAJEROS / USUARIOS (CRUD) -->
+                            @if (adminTab == "usuarios")
+                            {
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold fs-7 text-dark">Gestión de Cajeros y Usuarios del Sistema</span>
+                                        <button class="btn btn-sm text-white fw-bold fs-8" style="background-color: #4F46E5;" @onclick="AbrirModalNuevoCajero">➕ Crear Cajero</button>
+                                    </div>
+                                    <div class="table-responsive overflow-auto" style="max-height: 250px;">
+                                        <table class="table table-hover align-middle fs-8 mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Usuario</th>
+                                                    <th>Nombre Completo</th>
+                                                    <th>Rol</th>
+                                                    <th>Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var u in usuarios)
+                                                {
+                                                    <tr>
+                                                        <td><code>@u.Username</code></td>
+                                                        <td class="fw-bold">@u.Nombre</td>
+                                                        <td><span class="badge @(u.Rol == "Admin" ? "bg-purple text-white" : "bg-primary")">@u.Rol</span></td>
+                                                        <td><span class="badge @(u.Activo ? "bg-success" : "bg-secondary")">@(u.Activo ? "Activo" : "Inactivo")</span></td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
                 </div>
-            </div>
-        }
+            }
 
-        <!-- ========================================================================= -->
-        <!-- COLUMNA DERECHA: INTERFAZ DEL ADMINISTRADOR (LIGHT THEME DASHBOARD #F8FAFC) -->
-        <!-- ========================================================================= -->
-        @if (activeTab == "admin" || activeTab == "dual")
-        {
-            <div class="@(activeTab == "dual" ? "col-xl-6" : "col-12")">
-                <div class="card border-0 shadow-lg rounded-4 p-3" style="background-color: #F8FAFC; border: 1px solid #CBD5E1;">
-                    
-                    <!-- Header Admin -->
-                    <div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom">
-                        <h5 class="fw-bold mb-0 text-dark">🛡️ Dashboard Administrador</h5>
-                        <button class="btn btn-sm btn-outline-primary rounded-3 px-3 fw-bold" @onclick="CargarDatosAsync">
-                            🔄 Actualizar BD
-                        </button>
-                    </div>
+        </div>
+    }
 
-                    <!-- 3 TOP KPI CARDS -->
-                    <div class="row g-2 mb-3">
-                        <!-- KPI 1: Ventas Hoy -->
-                        <div class="col-4">
-                            <div class="p-2 rounded-3 bg-white border shadow-sm">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="fw-bold text-muted" style="font-size: 0.75rem;">🟢 Ventas de Hoy</small>
-                                    <small class="badge bg-success-subtle text-success fw-bold" style="font-size: 0.65rem;">@ventasHoyCount hoy</small>
-                                </div>
-                                <div class="fw-bold text-dark fs-6 mt-1">$ @FormatCOP(ventasHoyCOP) COP</div>
-                            </div>
-                        </div>
-
-                        <!-- KPI 2: Pedidos -->
-                        <div class="col-4">
-                            <div class="p-2 rounded-3 bg-white border shadow-sm">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="fw-bold text-muted" style="font-size: 0.75rem;">💡 Total Ventas</small>
-                                    <small class="badge bg-primary-subtle text-primary fw-bold" style="font-size: 0.65rem;">@totalFacturasCount facturas</small>
-                                </div>
-                                <div class="fw-bold text-dark fs-5 mt-1">@totalFacturasCount</div>
-                            </div>
-                        </div>
-
-                        <!-- KPI 3: Poco Stock -->
-                        <div class="col-4">
-                            <div class="p-2 rounded-3 bg-white border shadow-sm">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="fw-bold text-muted" style="font-size: 0.75rem;">📝 Poco Stock</small>
-                                    <small class="badge bg-danger-subtle text-danger fw-bold" style="font-size: 0.65rem;">@pocoStockCount prods</small>
-                                </div>
-                                <div class="fw-bold text-danger fs-5 mt-1">@pocoStockCount</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- GRÁFICOS VISUALES -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-8">
-                            <div class="p-2 rounded-3 bg-white border shadow-sm h-100">
-                                <small class="fw-bold text-dark d-block mb-2">Resumen de Ventas Recientes</small>
-                                <div class="d-flex align-items-end justify-content-between px-2 pt-2" style="height: 70px;">
-                                    @for (int i = 0; i < 10; i++)
-                                    {
-                                        var heightPx = GetBarHeight(i);
-                                        <div class="rounded-top bg-primary" style="width: 8%; height: @(heightPx)px; opacity: 0.85;" title="Venta #@(i+1)"></div>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="p-2 rounded-3 bg-white border shadow-sm h-100 text-center">
-                                <small class="fw-bold text-dark d-block mb-1">Salud Inventario</small>
-                                <div class="position-relative d-inline-block my-1">
-                                    <div class="rounded-circle border border-4 d-flex align-items-center justify-content-center fw-bold"
-                                         style="width: 55px; height: 55px; border-color: #10B981 !important; color: #10B981; font-size: 0.8rem;">
-                                        @saludInventarioPct%
-                                    </div>
-                                </div>
-                                <small class="text-muted d-block" style="font-size: 0.65rem;">Stock Saludable</small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- PANEL DE GESTIÓN ADMINISTRATIVA CON SECCIONES -->
-                    <div class="bg-white rounded-3 p-3 border shadow-sm">
-                        <ul class="nav nav-pills nav-fill mb-3 bg-light p-1 rounded-3 fs-7">
-                            <li class="nav-item">
-                                <button class="nav-link fw-bold @(adminTab == "facturas" ? "active bg-primary text-white" : "text-dark")" @onclick='() => adminTab = "facturas"'>
-                                    📜 Ventas (@facturas.Count)
-                                </button>
-                            </li>
-                            <li class="nav-item">
-                                <button class="nav-link fw-bold @(adminTab == "productos" ? "active bg-primary text-white" : "text-dark")" @onclick='() => adminTab = "productos"'>
-                                    📦 Productos (@productos.Count)
-                                </button>
-                            </li>
-                            <li class="nav-item">
-                                <button class="nav-link fw-bold @(adminTab == "clientes" ? "active bg-primary text-white" : "text-dark")" @onclick='() => adminTab = "clientes"'>
-                                    👥 Clientes (@clientes.Count)
-                                </button>
-                            </li>
-                            <li class="nav-item">
-                                <button class="nav-link fw-bold @(adminTab == "usuarios" ? "active bg-primary text-white" : "text-dark")" @onclick='() => adminTab = "usuarios"'>
-                                    👔 Cajeros
-                                </button>
-                            </li>
-                        </ul>
-
-                        <!-- TABLA: VENTAS / FACTURAS -->
-                        @if (adminTab == "facturas")
-                        {
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold fs-7 text-dark">Historial de Facturas Emitidas</span>
-                                    <input type="date" class="form-control form-control-sm w-auto fs-8" @bind="filtroFechaFactura" />
-                                </div>
-                                <div class="table-responsive overflow-auto" style="max-height: 250px;">
-                                    <table class="table table-hover table-striped align-middle fs-8 mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Folio</th>
-                                                <th>Fecha</th>
-                                                <th>Cliente</th>
-                                                <th>Total</th>
-                                                <th>Estado</th>
-                                                <th class="text-end">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var fac in facturasFiltradas)
-                                            {
-                                                <tr>
-                                                    <td class="fw-bold">@fac.NumeroFactura</td>
-                                                    <td>@fac.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
-                                                    <td>@(fac.Cliente?.Nombre ?? "Cliente General")</td>
-                                                    <td class="fw-bold text-success">$@FormatCOP(fac.Total)</td>
-                                                    <td>
-                                                        <span class="badge @(fac.Estado == "Anulada" ? "bg-danger" : "bg-success")">@fac.Estado</span>
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <button class="btn btn-sm btn-outline-primary py-0 px-2 fs-8" @onclick="() => AbrirFacturaPdf(fac)">📄 FE</button>
-                                                        <button class="btn btn-sm btn-outline-dark py-0 px-2 fs-8 ms-1" @onclick="() => AbrirFacturaTicket(fac)">🖨️ POS</button>
-                                                        @if (fac.Estado != "Anulada")
-                                                        {
-                                                            <button class="btn btn-sm btn-outline-danger py-0 px-2 fs-8 ms-1" @onclick="() => AnularFactura(fac)">🚫</button>
-                                                        }
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        }
-
-                        <!-- TABLA: PRODUCTOS (CRUD) -->
-                        @if (adminTab == "productos")
-                        {
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold fs-7 text-dark">Gestión de Catálogo de Productos</span>
-                                    <button class="btn btn-sm btn-success fw-bold fs-8" @onclick="AbrirModalNuevoProducto">➕ Crear Producto</button>
-                                </div>
-                                <div class="table-responsive overflow-auto" style="max-height: 250px;">
-                                    <table class="table table-hover align-middle fs-8 mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>SKU</th>
-                                                <th>Nombre</th>
-                                                <th>Categoría</th>
-                                                <th>Precio (COP)</th>
-                                                <th>Stock</th>
-                                                <th class="text-end">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var p in productos)
-                                            {
-                                                <tr>
-                                                    <td><code>@p.CodigoBarra</code></td>
-                                                    <td class="fw-bold">@p.Nombre</td>
-                                                    <td><span class="badge bg-info text-dark">@p.Categoria</span></td>
-                                                    <td class="fw-bold" style="color: #10B981;">$@FormatCOP(p.Precio)</td>
-                                                    <td><span class="badge @(p.Stock <= 5 ? "bg-danger" : "bg-success")">@p.Stock</span></td>
-                                                    <td class="text-end">
-                                                        <button class="btn btn-sm btn-outline-secondary py-0 px-2 fs-8" @onclick="() => AbrirModalEditarProducto(p)">✏️ Editar</button>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        }
-
-                        <!-- TABLA: CLIENTES (CRUD) -->
-                        @if (adminTab == "clientes")
-                        {
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold fs-7 text-dark">Directorio de Clientes</span>
-                                    <button class="btn btn-sm text-white fw-bold fs-8" style="background-color: #0284C7;" @onclick="AbrirModalNuevoCliente">➕ Nuevo Cliente</button>
-                                </div>
-                                <div class="table-responsive overflow-auto" style="max-height: 250px;">
-                                    <table class="table table-hover align-middle fs-8 mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Documento</th>
-                                                <th>Nombre</th>
-                                                <th>Email</th>
-                                                <th>Teléfono</th>
-                                                <th class="text-end">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var c in clientes)
-                                            {
-                                                <tr>
-                                                    <td><code>@c.DocumentoIdentidad</code></td>
-                                                    <td class="fw-bold">@c.Nombre</td>
-                                                    <td>@c.Email</td>
-                                                    <td>@c.Telefono</td>
-                                                    <td class="text-end">
-                                                        <button class="btn btn-sm btn-outline-secondary py-0 px-2 fs-8" @onclick="() => AbrirModalEditarCliente(c)">✏️ Editar</button>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        }
-
-                        <!-- TABLA: CAJEROS / USUARIOS (CRUD) -->
-                        @if (adminTab == "usuarios")
-                        {
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold fs-7 text-dark">Gestión de Cajeros y Usuarios del Sistema</span>
-                                    <button class="btn btn-sm text-white fw-bold fs-8" style="background-color: #4F46E5;" @onclick="AbrirModalNuevoCajero">➕ Crear Cajero</button>
-                                </div>
-                                <div class="table-responsive overflow-auto" style="max-height: 250px;">
-                                    <table class="table table-hover align-middle fs-8 mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Usuario</th>
-                                                <th>Nombre Completo</th>
-                                                <th>Rol</th>
-                                                <th>Estado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var u in usuarios)
-                                            {
-                                                <tr>
-                                                    <td><code>@u.Username</code></td>
-                                                    <td class="fw-bold">@u.Nombre</td>
-                                                    <td><span class="badge @(u.Rol == "Admin" ? "bg-purple text-white" : "bg-primary")">@u.Rol</span></td>
-                                                    <td><span class="badge @(u.Activo ? "bg-success" : "bg-secondary")">@(u.Activo ? "Activo" : "Inactivo")</span></td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        }
-
-                    </div>
-
-                </div>
-            </div>
-        }
-
-    </div>
 </div>
 
 <!-- ========================================================================= -->
@@ -704,7 +746,7 @@
 }
 
 @code {
-    private string activeTab = "dual"; // "cajero", "admin", "dual"
+    private string activeTab = "cajero"; // Default "cajero"
     private string adminTab = "facturas"; // "facturas", "productos", "clientes", "usuarios"
 
     private List<Producto> productos = new();
@@ -727,6 +769,10 @@
     private DateTime? filtroFechaFactura;
 
     private Usuario? usuarioLogueado;
+    private bool esAdmin => usuarioLogueado != null &&
+        (usuarioLogueado.Rol.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+         usuarioLogueado.Rol.Equals("Administrador", StringComparison.OrdinalIgnoreCase));
+
     private bool mostrarModalLogin = false;
     private string loginUsuario = "";
     private string loginPassword = "";
@@ -910,9 +956,10 @@
 
     private async Task AnularFactura(Factura fac)
     {
+        if (!esAdmin) return;
         try
         {
-            var ok = await ApiService.AnularFacturaAsync(fac.Id, "Anulada desde interfaz web");
+            var ok = await ApiService.AnularFacturaAsync(fac.Id, "Anulada por Administrador");
             if (ok)
             {
                 await CargarDatosAsync();
@@ -968,6 +1015,15 @@
         {
             usuarioLogueado = usr;
             mostrarModalLogin = false;
+
+            if (esAdmin)
+            {
+                activeTab = "admin";
+            }
+            else
+            {
+                activeTab = "cajero";
+            }
         }
         else
         {
@@ -978,16 +1034,19 @@
     private void CerrarSesion()
     {
         usuarioLogueado = null;
+        activeTab = "cajero";
     }
 
     private void AbrirModalNuevoProducto()
     {
+        if (!esAdmin) return;
         productoEdicion = new Producto { Categoria = "General", Stock = 10, Precio = 1000 };
         mostrarModalProducto = true;
     }
 
     private void AbrirModalEditarProducto(Producto p)
     {
+        if (!esAdmin) return;
         productoEdicion = new Producto
         {
             Id = p.Id,
@@ -1002,7 +1061,7 @@
 
     private async Task GuardarProducto()
     {
-        if (string.IsNullOrWhiteSpace(productoEdicion.Nombre)) return;
+        if (!esAdmin || string.IsNullOrWhiteSpace(productoEdicion.Nombre)) return;
 
         if (productoEdicion.Id == 0)
             await ApiService.CrearProductoAsync(productoEdicion);
@@ -1021,6 +1080,7 @@
 
     private void AbrirModalEditarCliente(Cliente c)
     {
+        if (!esAdmin) return;
         clienteEdicion = new Cliente
         {
             Id = c.Id,
@@ -1047,6 +1107,7 @@
 
     private void AbrirModalNuevoCajero()
     {
+        if (!esAdmin) return;
         cajeroNuevo = new Usuario { Rol = "Cajero", Activo = true };
         cajeroNuevoPassword = "";
         mostrarModalCajero = true;
@@ -1054,7 +1115,7 @@
 
     private async Task GuardarCajero()
     {
-        if (string.IsNullOrWhiteSpace(cajeroNuevo.Username) || string.IsNullOrWhiteSpace(cajeroNuevoPassword)) return;
+        if (!esAdmin || string.IsNullOrWhiteSpace(cajeroNuevo.Username) || string.IsNullOrWhiteSpace(cajeroNuevoPassword)) return;
         cajeroNuevo.PasswordHash = cajeroNuevoPassword;
 
         await ApiService.CrearUsuarioAsync(cajeroNuevo);
