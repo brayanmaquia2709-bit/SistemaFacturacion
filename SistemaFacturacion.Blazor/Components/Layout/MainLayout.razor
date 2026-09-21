@@ -1,23 +1,45 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
+<div class="maui-app-container d-flex flex-row vh-100 overflow-hidden" style="background-color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <!-- BARRA LATERAL ESTILO MAUI (#0F172A) -->
+    <div class="maui-sidebar d-flex flex-column align-items-center py-3 px-2 text-white shadow" style="width: 70px; background-color: #0F172A; min-height: 100vh; z-index: 100;">
+        <!-- Logo -->
+        <button class="btn btn-emerald rounded-3 p-0 mb-3 d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 42px; height: 42px; background-color: #10B981; color: white; border: none; font-size: 1.2rem;" title="Sistema de Facturación POS">
+            ⚡
+        </button>
+        <hr class="w-100 my-2" style="border-color: #1E293B;" />
+
+        <!-- Iconos de Navegación Vertical -->
+        <div class="d-flex flex-column gap-2 align-items-center w-100">
+            <a href="/" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center text-white" style="width: 40px; height: 40px; background-color: #10B981;" title="Punto de Venta POS & Dashboard">
+                🛒
+            </a>
+            <a href="/productos" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Gestión de Inventario">
+                📦
+            </a>
+            <a href="/clientes" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Directorio de Clientes">
+                👥
+            </a>
+            <a href="/facturas" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Historial de Facturación">
+                📜
+            </a>
+            <a href="/caja" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Control de Caja">
+                💵
+            </a>
+            <a href="/vendedores" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #10B981;" title="Gestión de Cajeros & Usuarios">
+                🛡️
+            </a>
+        </div>
     </div>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-grow-1 h-100 overflow-auto p-3" style="background-color: #CBD5E1;">
+        @Body
     </main>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
+    Ocurrió un error inesperado.
+    <a href="." class="reload">Recargar</a>
     <span class="dismiss">🗙</span>
 </div>
