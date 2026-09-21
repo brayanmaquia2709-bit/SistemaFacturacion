@@ -29,5 +29,9 @@ namespace SistemaFacturacion.Core.Entities
         // Propiedad de navegación
         public Cliente? Cliente { get; set; }
         public List<DetalleFactura> Detalles { get; set; } = new();
+
+        public decimal TotalCOP => Total < 10000 ? Total * 1000 : Total;
+        public string TotalCOPFormatted => $"$ {TotalCOP:N0} COP";
+        public string ClienteNombreMostrar => Cliente?.Nombre ?? (!string.IsNullOrWhiteSpace(UsuarioNombre) ? $"Cliente General ({UsuarioNombre})" : "Cliente General");
     }
 }

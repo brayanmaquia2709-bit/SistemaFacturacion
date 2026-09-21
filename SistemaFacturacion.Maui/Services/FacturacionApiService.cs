@@ -103,6 +103,45 @@ namespace SistemaFacturacion.Maui.Services
             return null;
         }
 
+        public async Task<bool> ActualizarClienteAsync(Cliente cliente)
+        {
+            try
+            {
+                var res = await _http.PutAsJsonAsync($"api/Clientes/{cliente.Id}", cliente);
+                return res.IsSuccessStatusCode;
+            }
+            catch { return false; }
+        }
+
+        public async Task<bool> ActualizarProductoAsync(Producto producto)
+        {
+            try
+            {
+                var res = await _http.PutAsJsonAsync($"api/Productos/{producto.Id}", producto);
+                return res.IsSuccessStatusCode;
+            }
+            catch { return false; }
+        }
+
+        public async Task<List<Factura>> GetFacturasAsync()
+        {
+            try
+            {
+                return await _http.GetFromJsonAsync<List<Factura>>("api/Facturas") ?? new();
+            }
+            catch { return new(); }
+        }
+
+        public async Task<bool> AnularFacturaAsync(int facturaId, string motivo = "Anulación por Administrador")
+        {
+            try
+            {
+                var res = await _http.PostAsJsonAsync($"api/Facturas/{facturaId}/anular", motivo);
+                return res.IsSuccessStatusCode;
+            }
+            catch { return false; }
+        }
+
         public async Task<Factura?> GenerarFacturaAsync(FacturaCreateDto dto)
         {
             try
@@ -173,6 +212,30 @@ namespace SistemaFacturacion.Maui.Services
             {
                 return new();
             }
+        }
+
+        public async Task<Usuario?> CrearUsuarioAsync(Usuario usuario)
+        {
+            try
+            {
+                var res = await _http.PostAsJsonAsync("api/Auth/usuarios", usuario);
+                if (res.IsSuccessStatusCode)
+                {
+                    return await res.Content.ReadFromJsonAsync<Usuario>();
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public async Task<bool> EliminarUsuarioAsync(int id)
+        {
+            try
+            {
+                var res = await _http.DeleteAsync($"api/Auth/usuarios/{id}");
+                return res.IsSuccessStatusCode;
+            }
+            catch { return false; }
         }
 
         // --- CAJA ---

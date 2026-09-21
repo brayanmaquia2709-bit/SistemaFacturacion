@@ -13,9 +13,12 @@ namespace SistemaFacturacion.Maui
         public decimal PrecioUnitario { get; set; }
         public decimal Subtotal => Cantidad * PrecioUnitario;
 
-        public string UnitPriceText => $"${PrecioUnitario:N2} c/u";
+        public decimal PrecioCOP => PrecioUnitario < 10000 ? PrecioUnitario * 1000 : PrecioUnitario;
+        public decimal SubtotalCOP => Subtotal < 10000 ? Subtotal * 1000 : Subtotal;
+
+        public string UnitPriceText => $"$ {PrecioCOP:N0} c/u";
         public string CantidadText => $"x{Cantidad}";
-        public string SubtotalText => $"${Subtotal:N2}";
+        public string SubtotalText => $"$ {SubtotalCOP:N0} COP";
     }
 
     public partial class MainPage : ContentPage
@@ -25,6 +28,10 @@ namespace SistemaFacturacion.Maui
         private List<Cliente> _clientes = new();
         private List<Producto> _productos = new();
         private List<Usuario> _usuarios = new();
+        private List<Factura> _facturas = new();
+        private bool _filtrandoPorFecha = false;
+        private Producto? _productoEnEdicion;
+        private Cliente? _clienteEnEdicion;
         private Usuario? _usuarioLogueado;
         private Factura? _ultimaFactura;
         private IDispatcherTimer? _autoRefreshTimer;
@@ -91,9 +98,21 @@ namespace SistemaFacturacion.Maui
                     int prevSelectedId = (ProductoPicker.SelectedItem as Producto)?.Id ?? 0;
                     _productos = nuevosProductos;
 
-                    // Actualizar catálogo del Picker manteniendo la posición si corresponde
+                    // Actualizar catálogo del Picker y de la cuadrícula POS
                     ProductoPicker.ItemsSource = null;
                     ProductoPicker.ItemsSource = _productos;
+
+                    if (ProductosCatalogCollectionView != null)
+                    {
+                        ProductosCatalogCollectionView.ItemsSource = null;
+                        ProductosCatalogCollectionView.ItemsSource = _productos;
+                    }
+
+                    if (AdminProductosCollectionView != null)
+                    {
+                        AdminProductosCollectionView.ItemsSource = null;
+                        AdminProductosCollectionView.ItemsSource = _productos;
+                    }
 
                     if (prevSelectedId > 0)
                     {
@@ -118,6 +137,12 @@ namespace SistemaFacturacion.Maui
                     ClientePicker.ItemsSource = null;
                     ClientePicker.ItemsSource = _clientes;
 
+                    if (AdminClientesCollectionView != null)
+                    {
+                        AdminClientesCollectionView.ItemsSource = null;
+                        AdminClientesCollectionView.ItemsSource = _clientes;
+                    }
+
                     if (prevSelectedCliId > 0)
                     {
                         var cliReencontrado = _clientes.FirstOrDefault(c => c.Id == prevSelectedCliId);
@@ -132,6 +157,14 @@ namespace SistemaFacturacion.Maui
                         ClientePicker.SelectedIndex = 0;
                     }
                 }
+
+                var nuevasFacturas = await _apiService.GetFacturasAsync();
+                if (nuevasFacturas.Any())
+                {
+                    _facturas = nuevasFacturas;
+                    AplicarFiltrosFacturas();
+                }
+                ActualizarDashboardKpis();
             }
             catch
             {
@@ -152,23 +185,148 @@ namespace SistemaFacturacion.Maui
 
             if (estaAutenticado)
             {
-                UserSessionLabel.Text = $"👤 Vendedor: {_usuarioLogueado!.Nombre} ({_usuarioLogueado.Rol})";
-                UserSessionLabel.TextColor = Color.FromArgb("#FDE047");
+                bool esAdmin = string.Equals(_usuarioLogueado!.Rol, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(_usuarioLogueado.Rol, "Administrador", StringComparison.OrdinalIgnoreCase);
+
+                // --- CONTROLES EXCLUSIVOS DE ADMINISTRADOR ---
+                AdminPanelBtn.IsVisible = esAdmin;
+                if (ServerConfigBtn != null) ServerConfigBtn.IsVisible = esAdmin;
+                if (AddProductBtn != null) AddProductBtn.IsVisible = esAdmin;
+                if (EditProductCardBorder != null) EditProductCardBorder.IsVisible = esAdmin;
+
+                if (esAdmin)
+                {
+                    UserSessionLabel.Text = $"🛡️ Administrador: {_usuarioLogueado.Nombre} (Acceso Total y Configuración)";
+                    UserSessionLabel.TextColor = Color.FromArgb("#10B981"); // Verde Esmeralda
+                    if (AdminNombreLabel != null) AdminNombreLabel.Text = $"Administrador: {_usuarioLogueado.Nombre}";
+
+                    if (AdminTabBtn != null) AdminTabBtn.IsVisible = true;
+                    if (DualTabBtn != null) DualTabBtn.IsVisible = true;
+
+                    // Al ingresar como Administrador, mostrar la Interfaz del Administrador por defecto
+                    ActivarVista("Admin");
+                }
+                else
+                {
+                    UserSessionLabel.Text = $"👤 Cajero: {_usuarioLogueado.Nombre} (Operativa POS & Facturación)";
+                    UserSessionLabel.TextColor = Color.FromArgb("#3B82F6"); // Azul Corporativo
+
+                    if (AdminTabBtn != null) AdminTabBtn.IsVisible = false;
+                    if (DualTabBtn != null) DualTabBtn.IsVisible = false;
+
+                    // Al ingresar como Cajero, mostrar exclusivamente la Interfaz del Cajero POS
+                    ActivarVista("Cajero");
+                }
             }
             else
             {
+                AdminPanelBtn.IsVisible = false;
+                if (ServerConfigBtn != null) ServerConfigBtn.IsVisible = false;
+                if (AddProductBtn != null) AddProductBtn.IsVisible = false;
+                if (EditProductCardBorder != null) EditProductCardBorder.IsVisible = false;
+                if (AdminTabBtn != null) AdminTabBtn.IsVisible = false;
+                if (DualTabBtn != null) DualTabBtn.IsVisible = false;
+
                 UserSessionLabel.Text = "🔒 Sesión Bloqueada: Inicie Sesión para Operar";
-                UserSessionLabel.TextColor = Color.FromArgb("#F87171");
+                UserSessionLabel.TextColor = Color.FromArgb("#EF4444");
+                ActivarVista("Cajero");
             }
+        }
+
+        private void OnMostrarCajeroViewClicked(object? sender, EventArgs e)
+        {
+            ActivarVista("Cajero");
+        }
+
+        private async void OnMostrarAdminViewClicked(object? sender, EventArgs e)
+        {
+            bool esAdmin = _usuarioLogueado != null &&
+                (string.Equals(_usuarioLogueado.Rol, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(_usuarioLogueado.Rol, "Administrador", StringComparison.OrdinalIgnoreCase));
+
+            if (!esAdmin)
+            {
+                await DisplayAlertAsync("Acceso Restringido", "Solo los administradores tienen acceso a la interfaz de administración.", "OK");
+                return;
+            }
+
+            ActivarVista("Admin");
+        }
+
+        private async void OnMostrarVistaDualClicked(object? sender, EventArgs e)
+        {
+            bool esAdmin = _usuarioLogueado != null &&
+                (string.Equals(_usuarioLogueado.Rol, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(_usuarioLogueado.Rol, "Administrador", StringComparison.OrdinalIgnoreCase));
+
+            if (!esAdmin)
+            {
+                await DisplayAlertAsync("Acceso Restringido", "La vista dual está disponible únicamente para el Administrador.", "OK");
+                return;
+            }
+
+            ActivarVista("Dual");
+        }
+
+        private void ActivarVista(string modo)
+        {
+            if (Quadrant1 == null || Quadrant2 == null || MainLayoutGrid == null) return;
+
+            if (modo == "Cajero")
+            {
+                Quadrant1.IsVisible = true;
+                Quadrant2.IsVisible = false;
+                Grid.SetColumn(Quadrant1, 0);
+                Grid.SetColumnSpan(Quadrant1, 2);
+
+                if (CajeroTabBtn != null) { CajeroTabBtn.Opacity = 1.0; CajeroTabBtn.FontAttributes = FontAttributes.Bold; }
+                if (AdminTabBtn != null) { AdminTabBtn.Opacity = 0.5; AdminTabBtn.FontAttributes = FontAttributes.None; }
+                if (DualTabBtn != null) { DualTabBtn.Opacity = 0.5; DualTabBtn.FontAttributes = FontAttributes.None; }
+            }
+            else if (modo == "Admin")
+            {
+                Quadrant1.IsVisible = false;
+                Quadrant2.IsVisible = true;
+                Grid.SetColumn(Quadrant2, 0);
+                Grid.SetColumnSpan(Quadrant2, 2);
+
+                if (CajeroTabBtn != null) { CajeroTabBtn.Opacity = 0.5; CajeroTabBtn.FontAttributes = FontAttributes.None; }
+                if (AdminTabBtn != null) { AdminTabBtn.Opacity = 1.0; AdminTabBtn.FontAttributes = FontAttributes.Bold; }
+                if (DualTabBtn != null) { DualTabBtn.Opacity = 0.5; DualTabBtn.FontAttributes = FontAttributes.None; }
+            }
+            else // Dual
+            {
+                Quadrant1.IsVisible = true;
+                Quadrant2.IsVisible = true;
+                Grid.SetColumn(Quadrant1, 0);
+                Grid.SetColumnSpan(Quadrant1, 1);
+                Grid.SetColumn(Quadrant2, 1);
+                Grid.SetColumnSpan(Quadrant2, 1);
+
+                if (CajeroTabBtn != null) { CajeroTabBtn.Opacity = 0.5; CajeroTabBtn.FontAttributes = FontAttributes.None; }
+                if (AdminTabBtn != null) { AdminTabBtn.Opacity = 0.5; AdminTabBtn.FontAttributes = FontAttributes.None; }
+                if (DualTabBtn != null) { DualTabBtn.Opacity = 1.0; DualTabBtn.FontAttributes = FontAttributes.Bold; }
+            }
+        }
+
+        private void OnAbrirModalAdminClicked(object? sender, EventArgs e)
+        {
+            AdminServerUrlLabel.Text = FacturacionApiService.GetConfiguredBaseUrl();
+            ModalAdminOverlay.IsVisible = true;
+        }
+
+        private void OnCerrarModalAdminClicked(object? sender, EventArgs e)
+        {
+            ModalAdminOverlay.IsVisible = false;
         }
 
         protected override void OnSizeAllocated(double width, double height)
         {
             base.OnSizeAllocated(width, height);
 
-            if (MainLayoutGrid == null || LeftColumnStack == null || RightColumnStack == null) return;
+            if (MainLayoutGrid == null || Quadrant1 == null || Quadrant2 == null || Quadrant3 == null || Quadrant4 == null) return;
 
-            if (width < 768) // Modo Celular (Teléfono Móvil en Vertical: 1 sola columna fluida)
+            if (width < 900) // Modo Pantalla Angosta (1 sola columna para móviles / tablets verticales)
             {
                 MainLayoutGrid.ColumnDefinitions.Clear();
                 MainLayoutGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
@@ -176,14 +334,15 @@ namespace SistemaFacturacion.Maui
                 MainLayoutGrid.RowDefinitions.Clear();
                 MainLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 MainLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                MainLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                MainLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-                Grid.SetColumn(LeftColumnStack, 0);
-                Grid.SetRow(LeftColumnStack, 0);
-
-                Grid.SetColumn(RightColumnStack, 0);
-                Grid.SetRow(RightColumnStack, 1);
+                Grid.SetColumn(Quadrant1, 0); Grid.SetRow(Quadrant1, 0);
+                Grid.SetColumn(Quadrant2, 0); Grid.SetRow(Quadrant2, 1);
+                Grid.SetColumn(Quadrant3, 0); Grid.SetRow(Quadrant3, 2);
+                Grid.SetColumn(Quadrant4, 0); Grid.SetRow(Quadrant4, 3);
             }
-            else // Modo Tablet / PC (2 columnas lado a lado)
+            else // Modo Escritorio / Tablet Horizontal (2x2 Grid)
             {
                 MainLayoutGrid.ColumnDefinitions.Clear();
                 MainLayoutGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
@@ -191,12 +350,12 @@ namespace SistemaFacturacion.Maui
 
                 MainLayoutGrid.RowDefinitions.Clear();
                 MainLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                MainLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-                Grid.SetColumn(LeftColumnStack, 0);
-                Grid.SetRow(LeftColumnStack, 0);
-
-                Grid.SetColumn(RightColumnStack, 1);
-                Grid.SetRow(RightColumnStack, 0);
+                Grid.SetColumn(Quadrant1, 0); Grid.SetRow(Quadrant1, 0);
+                Grid.SetColumn(Quadrant2, 1); Grid.SetRow(Quadrant2, 0);
+                Grid.SetColumn(Quadrant3, 0); Grid.SetRow(Quadrant3, 1);
+                Grid.SetColumn(Quadrant4, 1); Grid.SetRow(Quadrant4, 1);
             }
         }
 
@@ -208,10 +367,18 @@ namespace SistemaFacturacion.Maui
                 _clientes = await _apiService.GetClientesAsync();
                 _productos = await _apiService.GetProductosAsync();
                 _usuarios = await _apiService.GetUsuariosAsync();
+                _facturas = await _apiService.GetFacturasAsync();
 
                 ClientePicker.ItemsSource = _clientes;
                 ProductoPicker.ItemsSource = _productos;
+                if (ProductosCatalogCollectionView != null) ProductosCatalogCollectionView.ItemsSource = _productos;
                 UsuariosRapidosPicker.ItemsSource = _usuarios;
+
+                if (AdminProductosCollectionView != null) AdminProductosCollectionView.ItemsSource = _productos;
+                if (AdminClientesCollectionView != null) AdminClientesCollectionView.ItemsSource = _clientes;
+                if (AdminUsuariosCollectionView != null) AdminUsuariosCollectionView.ItemsSource = _usuarios;
+                AplicarFiltrosFacturas();
+                ActualizarDashboardKpis();
 
                 if (_clientes.Any() && ClientePicker.SelectedIndex < 0) ClientePicker.SelectedIndex = 0;
                 if (_productos.Any() && ProductoPicker.SelectedIndex < 0) ProductoPicker.SelectedIndex = 0;
@@ -224,6 +391,52 @@ namespace SistemaFacturacion.Maui
             {
                 SetLoading(false);
             }
+        }
+
+        private async void OnProductoCardTapped(object? sender, EventArgs e)
+        {
+            Producto? prod = (e as TappedEventArgs)?.Parameter as Producto ??
+                             (sender as BindableObject)?.BindingContext as Producto;
+
+            if (prod == null) return;
+
+            // Seleccionar en el picker
+            ProductoPicker.SelectedItem = prod;
+
+            if (prod.Stock <= 0)
+            {
+                await DisplayAlertAsync("Stock Agotado", $"El producto '{prod.Nombre}' no cuenta con unidades disponibles.", "OK");
+                return;
+            }
+
+            int cantidad = 1;
+            if (int.TryParse(CantidadEntry.Text, out int cantIngresada) && cantIngresada > 0)
+            {
+                cantidad = cantIngresada;
+            }
+
+            var itemExistente = _carrito.FirstOrDefault(c => c.ProductoId == prod.Id);
+            if (itemExistente != null)
+            {
+                if (prod.Stock < itemExistente.Cantidad + cantidad)
+                {
+                    await DisplayAlertAsync("Stock Insuficiente", $"No puede agregar más unidades de '{prod.Nombre}'. Stock disponible: {prod.Stock}", "OK");
+                    return;
+                }
+                itemExistente.Cantidad += cantidad;
+            }
+            else
+            {
+                _carrito.Add(new CarritoItemModel
+                {
+                    ProductoId = prod.Id,
+                    ProductoNombre = prod.Nombre,
+                    Cantidad = cantidad,
+                    PrecioUnitario = prod.Precio
+                });
+            }
+
+            ActualizarTotales();
         }
 
         private async void OnRecargarClicked(object? sender, EventArgs e)
@@ -239,7 +452,7 @@ namespace SistemaFacturacion.Maui
                 ClienteBadgeDoc.Text = $"🆔 Documento: {cliente.DocumentoIdentidad}";
                 ClienteBadgeEmail.Text = $"📧 Email: {cliente.Email}";
                 ClienteBadgeTel.Text = $"📞 Teléfono: {cliente.Telefono}";
-                ClienteCardBadge.IsVisible = true;
+                ClienteCardBadge.IsVisible = false;
             }
             else
             {
@@ -252,7 +465,7 @@ namespace SistemaFacturacion.Maui
             if (ProductoPicker.SelectedItem is Producto producto)
             {
                 ProductoBadgeNombre.Text = $"📦 {producto.Nombre}";
-                ProductoBadgePrecio.Text = $"💰 Precio: ${producto.Precio:N2}";
+                ProductoBadgePrecio.Text = $"💰 Precio: {producto.PrecioCOPFormatted}";
                 ProductoBadgeCodigo.Text = $"🏷️ SKU: {producto.CodigoBarra} | Categoría: {producto.Categoria}";
                 ProductoBadgeStock.Text = $"Stock: {producto.Stock} uds";
 
@@ -269,7 +482,7 @@ namespace SistemaFacturacion.Maui
                     StockBadgeBorder.BackgroundColor = Color.FromArgb("#EF4444"); // Red
                 }
 
-                ProductoCardBadge.IsVisible = true;
+                ProductoCardBadge.IsVisible = false;
             }
             else
             {
@@ -347,13 +560,18 @@ namespace SistemaFacturacion.Maui
 
             decimal descuentoMonto = subtotalBruto * (pctDescuento / 100m);
             decimal subtotalNeto = subtotalBruto - descuentoMonto;
-            decimal impuestos = subtotalNeto * 0.19m; // 19% IVA
+            decimal impuestos = subtotalNeto * 0.19m; // 19% IVA Colombia
             decimal total = subtotalNeto + impuestos;
 
-            SubtotalLabel.Text = $"${subtotalBruto:N2}";
-            DescuentoLabel.Text = $"-${descuentoMonto:N2} ({pctDescuento}%)";
-            ImpuestoLabel.Text = $"${impuestos:N2}";
-            TotalLabel.Text = $"${total:N2}";
+            decimal subtotalBrutoCOP = subtotalBruto < 10000 ? subtotalBruto * 1000 : subtotalBruto;
+            decimal totalCOP = total < 10000 ? total * 1000 : total;
+            decimal descuentoMontoCOP = descuentoMonto < 10000 ? descuentoMonto * 1000 : descuentoMonto;
+            decimal impuestosCOP = impuestos < 10000 ? impuestos * 1000 : impuestos;
+
+            SubtotalLabel.Text = $"$ {subtotalBrutoCOP:N0} COP";
+            DescuentoLabel.Text = $"- $ {descuentoMontoCOP:N0} COP ({pctDescuento}%)";
+            ImpuestoLabel.Text = $"$ {impuestosCOP:N0} COP";
+            TotalLabel.Text = $"$ {totalCOP:N0} COP";
         }
 
         private async void OnGenerarFacturaClicked(object? sender, EventArgs e)
@@ -496,6 +714,16 @@ namespace SistemaFacturacion.Maui
         // Login / Autenticación Vendedor
         private void OnAbrirModalLoginClicked(object? sender, EventArgs e)
         {
+            bool remember = Preferences.Get("RememberUser", false);
+            if (RecordarmeCheckBox != null) RecordarmeCheckBox.IsChecked = remember;
+            if (remember && LoginUsernameEntry != null)
+            {
+                LoginUsernameEntry.Text = Preferences.Get("SavedUsername", "");
+            }
+            if (LoginPasswordEntry != null)
+            {
+                LoginPasswordEntry.Text = string.Empty; // NUNCA contraseña por defecto
+            }
             ModalLoginOverlay.IsVisible = true;
         }
 
@@ -527,7 +755,7 @@ namespace SistemaFacturacion.Maui
             if (UsuariosRapidosPicker.SelectedItem is Usuario user)
             {
                 LoginUsernameEntry.Text = user.Username;
-                LoginPasswordEntry.Text = user.PasswordHash;
+                LoginPasswordEntry.Text = string.Empty; // NUNCA autocompletar contraseña por seguridad
             }
         }
 
@@ -549,6 +777,18 @@ namespace SistemaFacturacion.Maui
             if (usuario != null)
             {
                 _usuarioLogueado = usuario;
+
+                if (RecordarmeCheckBox != null && RecordarmeCheckBox.IsChecked)
+                {
+                    Preferences.Set("RememberUser", true);
+                    Preferences.Set("SavedUsername", username);
+                }
+                else
+                {
+                    Preferences.Set("RememberUser", false);
+                    Preferences.Remove("SavedUsername");
+                }
+
                 ActualizarEstadoAcceso();
                 ModalLoginOverlay.IsVisible = false;
                 await DisplayAlertAsync("Bienvenido 🎉", $"Sesión iniciada como {usuario.Nombre} [{usuario.Rol}]", "OK");
@@ -557,13 +797,73 @@ namespace SistemaFacturacion.Maui
             {
                 string currentUrl = FacturacionApiService.GetConfiguredBaseUrl();
                 bool config = await DisplayAlertAsync("Error de Conexión / Autenticación",
-                    $"No se pudo conectar a la API en: {currentUrl}\n\nSi estás usando tu celular físico, asegúrate de conectarte a la red Wi-Fi e ingresar la IP de tu PC (192.168.6.157).\n\n¿Deseas configurar la IP del Servidor ahora?",
+                    $"Usuario o contraseña incorrectos, o no se pudo conectar a la API en: {currentUrl}\n\n¿Deseas configurar la IP del Servidor ahora?",
                     "Configurar IP 🌐", "Reintentar");
 
                 if (config)
                 {
                     OnAbrirModalServerClicked(this, EventArgs.Empty);
                 }
+            }
+        }
+
+        private void ActualizarDashboardKpis()
+        {
+            if (_facturas == null || _productos == null) return;
+
+            DateTime hoy = DateTime.Today;
+
+            // 1. Ventas de Hoy
+            var facturasHoy = _facturas.Where(f => f.Estado != "Anulada" && (f.Fecha.Date == hoy || f.Fecha.ToLocalTime().Date == hoy)).ToList();
+            decimal ventasHoyCOP = facturasHoy.Sum(f => f.TotalCOP);
+
+            if (KpiVentasHoyLabel != null) KpiVentasHoyLabel.Text = $"$ {ventasHoyCOP:N0} COP";
+            if (KpiVentasHoyTrendLabel != null) KpiVentasHoyTrendLabel.Text = $"{facturasHoy.Count} ventas hoy";
+
+            // 2. Total Facturas / Ventas
+            var facturasActivas = _facturas.Where(f => f.Estado != "Anulada").ToList();
+            if (KpiPedidosLabel != null) KpiPedidosLabel.Text = facturasActivas.Count.ToString();
+            if (KpiPedidosTrendLabel != null) KpiPedidosTrendLabel.Text = $"{_facturas.Count} facturas";
+
+            // 3. Poco Stock (Stock <= 5)
+            var prodsPocoStock = _productos.Where(p => p.Stock <= 5).ToList();
+            if (KpiPocoStockLabel != null) KpiPocoStockLabel.Text = prodsPocoStock.Count.ToString();
+            if (KpiPocoStockSubLabel != null) KpiPocoStockSubLabel.Text = $"{prodsPocoStock.Count} prods";
+
+            // 4. Resumen de Ventas (10 Barras dinámicas según ventas reales)
+            var ultimasVentas = facturasActivas.Take(10).Reverse().ToList();
+            decimal maxVenta = ultimasVentas.Any() ? ultimasVentas.Max(v => v.TotalCOP) : 1;
+            if (maxVenta <= 0) maxVenta = 1;
+
+            BoxView[] barBoxViews = new[] { BarVenta0, BarVenta1, BarVenta2, BarVenta3, BarVenta4, BarVenta5, BarVenta6, BarVenta7, BarVenta8, BarVenta9 };
+            for (int i = 0; i < 10; i++)
+            {
+                if (barBoxViews[i] != null)
+                {
+                    if (i < ultimasVentas.Count)
+                    {
+                        double altura = (double)(ultimasVentas[i].TotalCOP / maxVenta) * 65.0 + 10.0;
+                        barBoxViews[i].HeightRequest = Math.Min(75.0, Math.Max(10.0, altura));
+                        barBoxViews[i].IsVisible = true;
+                    }
+                    else
+                    {
+                        barBoxViews[i].HeightRequest = 10;
+                    }
+                }
+            }
+
+            // 5. Estado de Inventario (% productos en stock adecuado)
+            int totalProds = _productos.Count;
+            int prodsSaludables = _productos.Count(p => p.Stock > 5);
+            int pctSaludable = totalProds > 0 ? (int)Math.Round((double)prodsSaludables / totalProds * 100) : 100;
+
+            if (EstadoInventarioLabel != null) EstadoInventarioLabel.Text = $"{pctSaludable}%";
+            if (EstadoInventarioEllipse != null)
+            {
+                if (pctSaludable >= 70) EstadoInventarioEllipse.Stroke = Color.FromArgb("#10B981");
+                else if (pctSaludable >= 40) EstadoInventarioEllipse.Stroke = Color.FromArgb("#F59E0B");
+                else EstadoInventarioEllipse.Stroke = Color.FromArgb("#EF4444");
             }
         }
 
@@ -770,6 +1070,7 @@ namespace SistemaFacturacion.Maui
             if (sender is Button btn && btn.CommandParameter is Producto producto)
             {
                 ProductoPicker.SelectedItem = producto;
+                OnProductoCardTapped(sender, new TappedEventArgs(producto));
                 ModalBuscarProductoOverlay.IsVisible = false;
             }
         }
@@ -779,6 +1080,7 @@ namespace SistemaFacturacion.Maui
             if (e.CurrentSelection.FirstOrDefault() is Producto producto)
             {
                 ProductoPicker.SelectedItem = producto;
+                OnProductoCardTapped(sender, new TappedEventArgs(producto));
                 ModalBuscarProductoOverlay.IsVisible = false;
             }
         }
@@ -967,17 +1269,19 @@ namespace SistemaFacturacion.Maui
                 _ultimaFactura = factura;
                 ModalCobroOverlay.IsVisible = false;
 
-                PdfBtn.IsEnabled = true;
-                CorreoBtn.IsEnabled = true;
-                WhatsAppBtn.IsEnabled = true;
+                string opcion = await DisplayActionSheetAsync(
+                    $"Venta Exitosa 🎉 | Factura #{factura.NumeroFactura}\nTotal: {factura.TotalCOPFormatted} | Cambio: $ {factura.Cambio:N0} COP",
+                    "Cerrar",
+                    null,
+                    "📄 Abrir Factura Electrónica (PDF Formato Carta/A4)",
+                    "🖨️ Imprimir Ticket POS (80mm)"
+                );
 
-                string msg = formaPago == "Credito"
-                    ? $"Venta a Crédito registrada para '{cliente.Nombre}'. Nuevo saldo pendiente: ${cliente.SaldoPendiente + factura.Total:N2}"
-                    : $"Venta Exitosa 🎉\nFactura #{factura.NumeroFactura}\nTotal: ${factura.Total:N2}\nCambio a Entregar: ${factura.Cambio:N2}";
-
-                bool verTicket = await DisplayAlertAsync("Cobro Exitoso 🚀", msg + "\n\n¿Desea abrir/descargar el Ticket de Caja POS (58mm/80mm)?", "Imprimir/Abrir Ticket 🖨️", "Cerrar");
-
-                if (verTicket)
+                if (opcion == "📄 Abrir Factura Electrónica (PDF Formato Carta/A4)")
+                {
+                    await DescargarPdfFacturaElectronicaAsync(factura.Id);
+                }
+                else if (opcion == "🖨️ Imprimir Ticket POS (80mm)")
                 {
                     await DescargarTicketPosAsync(factura.Id);
                 }
@@ -990,6 +1294,37 @@ namespace SistemaFacturacion.Maui
             else
             {
                 await DisplayAlertAsync("Error de Cobro", "No se pudo procesar la factura. Si es venta a crédito, verifique que el cliente no exceda su límite de crédito.", "OK");
+            }
+        }
+
+        private async Task DescargarPdfFacturaElectronicaAsync(int facturaId)
+        {
+            SetLoading(true);
+            try
+            {
+                byte[]? bytes = await _apiService.DescargarPdfBytesAsync(facturaId);
+                if (bytes != null && bytes.Length > 0)
+                {
+                    string path = Path.Combine(FileSystem.CacheDirectory, $"FacturaElectronica_{facturaId}.pdf");
+                    await File.WriteAllBytesAsync(path, bytes);
+
+                    await Launcher.Default.OpenAsync(new OpenFileRequest
+                    {
+                        File = new ReadOnlyFile(path)
+                    });
+                }
+                else
+                {
+                    await DisplayAlertAsync("Error PDF", "No se pudo obtener el PDF de la factura electrónica.", "OK");
+                }
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlertAsync("Error PDF", $"No se pudo abrir la Factura Electrónica: {ex.Message}", "OK");
+            }
+            finally
+            {
+                SetLoading(false);
             }
         }
 
@@ -1200,6 +1535,376 @@ namespace SistemaFacturacion.Maui
                 {
                     await DisplayAlertAsync("Error", "No se pudo registrar el abono.", "OK");
                 }
+            }
+        }
+
+        // ==========================================
+        // MÓDULO 5: ADMINISTRACIÓN & AUDITORÍA COMPLETA
+        // ==========================================
+        private void AplicarFiltrosFacturas()
+        {
+            if (_facturas == null || AdminFacturasCollectionView == null) return;
+
+            IEnumerable<Factura> resultado = _facturas;
+
+            bool estaFiltrandoPorFecha = AdminFiltrarPorFechaCheckBox?.IsChecked ?? _filtrandoPorFecha;
+
+            if (estaFiltrandoPorFecha && AdminFechaFiltroDatePicker != null && AdminFechaFiltroDatePicker.Date.HasValue)
+            {
+                DateTime fechaSeleccionada = AdminFechaFiltroDatePicker.Date.Value.Date;
+                resultado = resultado.Where(f => f.Fecha.ToLocalTime().Date == fechaSeleccionada || f.Fecha.Date == fechaSeleccionada);
+            }
+
+            if (AdminBuscarFacturaEntry != null && !string.IsNullOrWhiteSpace(AdminBuscarFacturaEntry.Text))
+            {
+                string busqueda = AdminBuscarFacturaEntry.Text.Trim().ToLowerInvariant();
+                resultado = resultado.Where(f =>
+                    (f.NumeroFactura != null && f.NumeroFactura.ToLowerInvariant().Contains(busqueda)) ||
+                    (f.ClienteNombreMostrar != null && f.ClienteNombreMostrar.ToLowerInvariant().Contains(busqueda)) ||
+                    (f.Cliente != null && f.Cliente.Nombre != null && f.Cliente.Nombre.ToLowerInvariant().Contains(busqueda)) ||
+                    (f.Estado != null && f.Estado.ToLowerInvariant().Contains(busqueda))
+                );
+            }
+
+            AdminFacturasCollectionView.ItemsSource = null;
+            AdminFacturasCollectionView.ItemsSource = resultado.ToList();
+        }
+
+        private void OnAdminFiltrarPorFechaCheckedChanged(object? sender, CheckedChangedEventArgs e)
+        {
+            _filtrandoPorFecha = e.Value;
+            AplicarFiltrosFacturas();
+        }
+
+        private void OnAdminFechaFiltroChanged(object? sender, DateChangedEventArgs e)
+        {
+            if (AdminFiltrarPorFechaCheckBox != null && AdminFiltrarPorFechaCheckBox.IsChecked)
+            {
+                _filtrandoPorFecha = true;
+                AplicarFiltrosFacturas();
+            }
+        }
+
+        private void OnAdminBuscarFacturaChanged(object? sender, TextChangedEventArgs e)
+        {
+            AplicarFiltrosFacturas();
+        }
+
+        private void OnMostrarTodasFacturasClicked(object? sender, EventArgs e)
+        {
+            _filtrandoPorFecha = false;
+            if (AdminFiltrarPorFechaCheckBox != null) AdminFiltrarPorFechaCheckBox.IsChecked = false;
+            if (AdminBuscarFacturaEntry != null) AdminBuscarFacturaEntry.Text = string.Empty;
+            AplicarFiltrosFacturas();
+        }
+
+        private async void OnAnularFacturaAdminClicked(object? sender, EventArgs e)
+        {
+            var fact = (sender as Button)?.CommandParameter as Factura ?? (sender as BindableObject)?.BindingContext as Factura;
+            if (fact == null) return;
+
+            if (string.Equals(fact.Estado, "Anulada", StringComparison.OrdinalIgnoreCase))
+            {
+                await DisplayAlertAsync("Factura Ya Anulada", $"La factura #{fact.NumeroFactura} ya se encuentra anulada.", "OK");
+                return;
+            }
+
+            bool confirmar = await DisplayAlertAsync("Anular Factura 🚫",
+                $"¿Está seguro de anular la factura #{fact.NumeroFactura} por valor de {fact.TotalCOPFormatted}?\n\nEsta acción devolverá los productos al stock del inventario y generará una nota de crédito.",
+                "Sí, Anular Venta", "Cancelar");
+
+            if (!confirmar) return;
+
+            SetLoading(true);
+            bool exito = await _apiService.AnularFacturaAsync(fact.Id, $"Anulada por {_usuarioLogueado?.Nombre ?? "Administrador"}");
+            SetLoading(false);
+
+            if (exito)
+            {
+                await DisplayAlertAsync("Anulación Exitosa 🎉", $"La factura #{fact.NumeroFactura} fue anulada y el stock de inventario fue devuelto.", "OK");
+                await CargarDatosAsync();
+            }
+            else
+            {
+                await DisplayAlertAsync("Error de Anulación", "No se pudo anular la factura en el servidor.", "OK");
+            }
+        }
+
+        private async void OnDescargarPdfAdminClicked(object? sender, EventArgs e)
+        {
+            var fact = (sender as Button)?.CommandParameter as Factura ?? (sender as BindableObject)?.BindingContext as Factura;
+            if (fact == null) return;
+
+            await DescargarPdfFacturaElectronicaAsync(fact.Id);
+        }
+
+        private async void OnDescargarTicketAdminClicked(object? sender, EventArgs e)
+        {
+            var fact = (sender as Button)?.CommandParameter as Factura ?? (sender as BindableObject)?.BindingContext as Factura;
+            if (fact == null) return;
+
+            await DescargarTicketPosAsync(fact.Id);
+        }
+
+        private void OnEditarProductoAdminClicked(object? sender, EventArgs e)
+        {
+            var prod = (sender as Button)?.CommandParameter as Producto ?? (sender as BindableObject)?.BindingContext as Producto;
+            if (prod == null) return;
+
+            _productoEnEdicion = prod;
+            EditProductoNombreEntry.Text = prod.Nombre;
+            EditProductoCategoriaEntry.Text = prod.Categoria;
+            EditProductoPrecioEntry.Text = prod.PrecioCOP.ToString("F0");
+            EditProductoStockEntry.Text = prod.Stock.ToString();
+            EditProductoCodigoBarraEntry.Text = prod.CodigoBarra;
+
+            ModalEditarProductoOverlay.IsVisible = true;
+        }
+
+        private void OnCerrarModalEditProductoClicked(object? sender, EventArgs e)
+        {
+            ModalEditarProductoOverlay.IsVisible = false;
+            _productoEnEdicion = null;
+        }
+
+        private async void OnGuardarEditProductoClicked(object? sender, EventArgs e)
+        {
+            if (_productoEnEdicion == null) return;
+
+            if (string.IsNullOrWhiteSpace(EditProductoNombreEntry.Text))
+            {
+                await DisplayAlertAsync("Atención", "Ingrese el nombre del producto.", "OK");
+                return;
+            }
+
+            if (!decimal.TryParse(EditProductoPrecioEntry.Text, out decimal precio) || precio <= 0)
+            {
+                await DisplayAlertAsync("Atención", "Ingrese un precio válido.", "OK");
+                return;
+            }
+
+            if (!int.TryParse(EditProductoStockEntry.Text, out int stock) || stock < 0)
+            {
+                await DisplayAlertAsync("Atención", "Ingrese un stock válido.", "OK");
+                return;
+            }
+
+            _productoEnEdicion.Nombre = EditProductoNombreEntry.Text.Trim();
+            _productoEnEdicion.Categoria = EditProductoCategoriaEntry.Text?.Trim() ?? "";
+            _productoEnEdicion.Precio = precio;
+            _productoEnEdicion.Stock = stock;
+            _productoEnEdicion.CodigoBarra = EditProductoCodigoBarraEntry.Text?.Trim() ?? "";
+
+            SetLoading(true);
+            bool res = await _apiService.ActualizarProductoAsync(_productoEnEdicion);
+            SetLoading(false);
+
+            if (res)
+            {
+                ModalEditarProductoOverlay.IsVisible = false;
+                _productoEnEdicion = null;
+                await DisplayAlertAsync("Producto Actualizado ✅", "Los datos del producto han sido modificados exitosamente.", "OK");
+                await CargarDatosAsync();
+            }
+            else
+            {
+                await DisplayAlertAsync("Error", "No se pudo actualizar el producto en el servidor.", "OK");
+            }
+        }
+
+        private async void OnEliminarProductoAdminClicked(object? sender, EventArgs e)
+        {
+            var prod = (sender as Button)?.CommandParameter as Producto ?? (sender as BindableObject)?.BindingContext as Producto;
+            if (prod == null) return;
+
+            bool confirmar = await DisplayAlertAsync("Eliminar Producto 🗑️", $"¿Está seguro de eliminar el producto '{prod.Nombre}'?", "Sí, Eliminar", "Cancelar");
+            if (!confirmar) return;
+
+            SetLoading(true);
+            bool res = await _apiService.EliminarProductoAsync(prod.Id);
+            SetLoading(false);
+
+            if (res)
+            {
+                await DisplayAlertAsync("Producto Eliminado 🗑️", $"El producto '{prod.Nombre}' fue eliminado.", "OK");
+                await CargarDatosAsync();
+            }
+            else
+            {
+                await DisplayAlertAsync("Error", "No se pudo eliminar el producto.", "OK");
+            }
+        }
+
+        private void OnEditarClienteAdminClicked(object? sender, EventArgs e)
+        {
+            var cli = (sender as Button)?.CommandParameter as Cliente ?? (sender as BindableObject)?.BindingContext as Cliente;
+            if (cli == null) return;
+
+            _clienteEnEdicion = cli;
+            EditClienteNombreEntry.Text = cli.Nombre;
+            EditClienteDocumentoEntry.Text = cli.DocumentoIdentidad;
+            EditClienteEmailEntry.Text = cli.Email;
+            EditClienteTelefonoEntry.Text = cli.Telefono;
+            EditClienteDireccionEntry.Text = cli.Direccion;
+
+            ModalEditarClienteOverlay.IsVisible = true;
+        }
+
+        private void OnCerrarModalEditClienteClicked(object? sender, EventArgs e)
+        {
+            ModalEditarClienteOverlay.IsVisible = false;
+            _clienteEnEdicion = null;
+        }
+
+        private async void OnGuardarEditClienteClicked(object? sender, EventArgs e)
+        {
+            if (_clienteEnEdicion == null) return;
+
+            if (string.IsNullOrWhiteSpace(EditClienteNombreEntry.Text))
+            {
+                await DisplayAlertAsync("Atención", "Ingrese el nombre del cliente.", "OK");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(EditClienteDocumentoEntry.Text))
+            {
+                await DisplayAlertAsync("Atención", "Ingrese el NIT / Documento del cliente.", "OK");
+                return;
+            }
+
+            _clienteEnEdicion.Nombre = EditClienteNombreEntry.Text.Trim();
+            _clienteEnEdicion.DocumentoIdentidad = EditClienteDocumentoEntry.Text.Trim();
+            _clienteEnEdicion.Email = EditClienteEmailEntry.Text?.Trim() ?? "";
+            _clienteEnEdicion.Telefono = EditClienteTelefonoEntry.Text?.Trim() ?? "";
+            _clienteEnEdicion.Direccion = EditClienteDireccionEntry.Text?.Trim() ?? "";
+
+            SetLoading(true);
+            bool res = await _apiService.ActualizarClienteAsync(_clienteEnEdicion);
+            SetLoading(false);
+
+            if (res)
+            {
+                ModalEditarClienteOverlay.IsVisible = false;
+                _clienteEnEdicion = null;
+                await DisplayAlertAsync("Cliente Actualizado ✅", "Los datos del cliente han sido modificados exitosamente.", "OK");
+                await CargarDatosAsync();
+            }
+            else
+            {
+                await DisplayAlertAsync("Error", "No se pudo actualizar el cliente en el servidor.", "OK");
+            }
+        }
+
+        private async void OnEliminarClienteAdminClicked(object? sender, EventArgs e)
+        {
+            var cli = (sender as Button)?.CommandParameter as Cliente ?? (sender as BindableObject)?.BindingContext as Cliente;
+            if (cli == null) return;
+
+            bool confirmar = await DisplayAlertAsync("Eliminar Cliente 🗑️", $"¿Está seguro de eliminar al cliente '{cli.Nombre}'?", "Sí, Eliminar", "Cancelar");
+            if (!confirmar) return;
+
+            SetLoading(true);
+            bool res = await _apiService.EliminarClienteAsync(cli.Id);
+            SetLoading(false);
+
+            if (res)
+            {
+                await DisplayAlertAsync("Cliente Eliminado 🗑️", $"El cliente '{cli.Nombre}' fue eliminado.", "OK");
+                await CargarDatosAsync();
+            }
+            else
+            {
+                await DisplayAlertAsync("Error", "No se pudo eliminar el cliente.", "OK");
+            }
+        }
+
+        // ==========================================
+        // MÓDULO 6: GESTIÓN DE CAJEROS Y USUARIOS
+        // ==========================================
+        private void OnAbrirModalUsuarioClicked(object? sender, EventArgs e)
+        {
+            NuevoUsuarioNombreEntry.Text = string.Empty;
+            NuevoUsuarioUsernameEntry.Text = string.Empty;
+            NuevoUsuarioPasswordEntry.Text = "123";
+            NuevoUsuarioRolPicker.SelectedIndex = 0; // Cajero
+            ModalUsuarioOverlay.IsVisible = true;
+        }
+
+        private void OnCerrarModalUsuarioClicked(object? sender, EventArgs e)
+        {
+            ModalUsuarioOverlay.IsVisible = false;
+        }
+
+        private async void OnGuardarNuevoUsuarioClicked(object? sender, EventArgs e)
+        {
+            string nombre = NuevoUsuarioNombreEntry.Text?.Trim() ?? "";
+            string username = NuevoUsuarioUsernameEntry.Text?.Trim() ?? "";
+            string password = NuevoUsuarioPasswordEntry.Text ?? "123";
+            string rol = NuevoUsuarioRolPicker.SelectedItem?.ToString() ?? "Cajero";
+
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                await DisplayAlertAsync("Atención", "Debe ingresar el nombre completo del cajero/usuario.", "OK");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                await DisplayAlertAsync("Atención", "Debe ingresar el nombre de usuario (Username).", "OK");
+                return;
+            }
+
+            var usuarioNuevo = new Usuario
+            {
+                Nombre = nombre,
+                Username = username,
+                PasswordHash = password,
+                Rol = rol,
+                Activo = true
+            };
+
+            SetLoading(true);
+            var usuarioCreado = await _apiService.CrearUsuarioAsync(usuarioNuevo);
+            SetLoading(false);
+
+            if (usuarioCreado != null)
+            {
+                ModalUsuarioOverlay.IsVisible = false;
+                await DisplayAlertAsync("Cajero Creado 🎉", $"El usuario '{usuarioCreado.Username}' ({usuarioCreado.Nombre}) con rol '{usuarioCreado.Rol}' fue registrado exitosamente.", "OK");
+                await CargarDatosAsync();
+            }
+            else
+            {
+                await DisplayAlertAsync("Error", "No se pudo crear el usuario. Verifique si el nombre de usuario ya está registrado.", "OK");
+            }
+        }
+
+        private async void OnEliminarUsuarioAdminClicked(object? sender, EventArgs e)
+        {
+            var usr = (sender as Button)?.CommandParameter as Usuario ?? (sender as BindableObject)?.BindingContext as Usuario;
+            if (usr == null) return;
+
+            if (_usuarioLogueado != null && _usuarioLogueado.Id == usr.Id)
+            {
+                await DisplayAlertAsync("Acción no permitida", "No puede eliminar su propio usuario activo en uso.", "OK");
+                return;
+            }
+
+            bool confirmar = await DisplayAlertAsync("Eliminar Usuario 🗑️", $"¿Está seguro de eliminar al cajero/usuario '{usr.Nombre}' ({usr.Username})?", "Sí, Eliminar", "Cancelar");
+            if (!confirmar) return;
+
+            SetLoading(true);
+            bool res = await _apiService.EliminarUsuarioAsync(usr.Id);
+            SetLoading(false);
+
+            if (res)
+            {
+                await DisplayAlertAsync("Usuario Eliminado 🗑️", $"El usuario '{usr.Username}' fue eliminado.", "OK");
+                await CargarDatosAsync();
+            }
+            else
+            {
+                await DisplayAlertAsync("Error", "No se pudo eliminar el usuario.", "OK");
             }
         }
     }
