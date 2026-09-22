@@ -5,6 +5,7 @@
 @using SistemaFacturacion.Blazor.Services
 @inject FacturacionApiService ApiService
 @inject IJSRuntime JS
+@implements IDisposable
 
 <PageTitle>Sistema de Facturación & POS Empresarial (COP)</PageTitle>
 
@@ -802,9 +803,62 @@
         public decimal Subtotal => Cantidad * PrecioUnitario;
     }
 
+    private CancellationTokenSource? _autoRefreshCts;
+
     protected override async Task OnInitializedAsync()
     {
         await CargarDatosAsync();
+        IniciarAutoRefresco();
+    }
+
+    private void IniciarAutoRefresco()
+    {
+        _autoRefreshCts = new CancellationTokenSource();
+        var token = _autoRefreshCts.Token;
+        _ = Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(3000, token);
+                    if (!token.IsCancellationRequested && !mostrarModalProducto && !mostrarModalCliente && !mostrarModalCajero && !mostrarModalLogin)
+                    {
+                        await InvokeAsync(async () =>
+                        {
+                            await CargarDatosSilenciosoAsync();
+                            StateHasChanged();
+                        });
+                    }
+                }
+                catch (TaskCanceledException) { }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error en autorrefresco en tiempo real: " + ex.Message);
+                }
+            }
+        }, token);
+    }
+
+    private async Task CargarDatosSilenciosoAsync()
+    {
+        var nuevosProductos = await ApiService.GetProductosAsync();
+        var nuevosClientes = await ApiService.GetClientesAsync();
+        var nuevasFacturas = await ApiService.GetFacturasAsync();
+        var nuevosUsuarios = await ApiService.GetUsuariosAsync();
+
+        if (nuevosProductos.Any()) productos = nuevosProductos;
+        if (nuevosClientes.Any()) clientes = nuevosClientes;
+        if (nuevasFacturas.Any()) facturas = nuevasFacturas;
+        if (nuevosUsuarios.Any()) usuarios = nuevosUsuarios;
+
+        CalcularKPIs();
+    }
+
+    public void Dispose()
+    {
+        _autoRefreshCts?.Cancel();
+        _autoRefreshCts?.Dispose();
     }
 
     private async Task CargarDatosAsync()

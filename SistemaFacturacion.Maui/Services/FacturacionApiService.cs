@@ -20,7 +20,7 @@ namespace SistemaFacturacion.Maui.Services
 
         public static string GetConfiguredBaseUrl()
         {
-            string defaultUrl = "https://sistemafacturacion-oh2n.onrender.com/";
+            string defaultUrl = "http://localhost:5145/";
             string savedUrl = Preferences.Get("ServerApiUrl", defaultUrl);
             if (!savedUrl.EndsWith("/")) savedUrl += "/";
             if (!savedUrl.StartsWith("http://") && !savedUrl.StartsWith("https://")) savedUrl = "http://" + savedUrl;
