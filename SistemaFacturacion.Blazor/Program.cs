@@ -129,7 +129,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseWhen(context => !context.Request.Path.StartsWithSegments("/api"), appBuilder =>
 {
-    appBuilder.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+    appBuilder.UseStatusCodePagesWithReExecute("/not-found");
 });
 app.UseCors("AllowAll");
 
