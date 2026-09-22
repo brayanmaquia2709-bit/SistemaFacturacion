@@ -35,6 +35,16 @@ namespace SistemaFacturacion.API.Controllers
                 return BadRequest("El nombre del cliente es obligatorio.");
             }
 
+            if (string.IsNullOrWhiteSpace(cliente.DocumentoIdentidad))
+            {
+                cliente.DocumentoIdentidad = $"CC-{Random.Shared.Next(100000, 999999)}";
+            }
+
+            if (string.IsNullOrWhiteSpace(cliente.Email))
+            {
+                cliente.Email = "cliente@correo.com";
+            }
+
             cliente.Id = 0; // Forzar autoincremento en SQLite
             _db.Clientes.Add(cliente);
             await _db.SaveChangesAsync();

@@ -847,10 +847,10 @@
         var nuevasFacturas = await ApiService.GetFacturasAsync();
         var nuevosUsuarios = await ApiService.GetUsuariosAsync();
 
-        if (nuevosProductos.Any()) productos = nuevosProductos;
-        if (nuevosClientes.Any()) clientes = nuevosClientes;
-        if (nuevasFacturas.Any()) facturas = nuevasFacturas;
-        if (nuevosUsuarios.Any()) usuarios = nuevosUsuarios;
+        if (nuevosProductos != null) productos = nuevosProductos;
+        if (nuevosClientes != null) clientes = nuevosClientes;
+        if (nuevasFacturas != null) facturas = nuevasFacturas;
+        if (nuevosUsuarios != null) usuarios = nuevosUsuarios;
 
         CalcularKPIs();
     }
@@ -1115,7 +1115,7 @@
 
     private async Task GuardarProducto()
     {
-        if (!esAdmin || string.IsNullOrWhiteSpace(productoEdicion.Nombre)) return;
+        if (string.IsNullOrWhiteSpace(productoEdicion.Nombre)) return;
 
         if (productoEdicion.Id == 0)
             await ApiService.CrearProductoAsync(productoEdicion);

@@ -93,7 +93,7 @@ namespace SistemaFacturacion.Maui
                 var nuevosProductos = await _apiService.GetProductosAsync();
                 var nuevosClientes = await _apiService.GetClientesAsync();
 
-                if (nuevosProductos.Any())
+                if (nuevosProductos != null)
                 {
                     int prevSelectedId = (ProductoPicker.SelectedItem as Producto)?.Id ?? 0;
                     _productos = nuevosProductos;
@@ -129,7 +129,7 @@ namespace SistemaFacturacion.Maui
                     }
                 }
 
-                if (nuevosClientes.Any())
+                if (nuevosClientes != null)
                 {
                     int prevSelectedCliId = (ClientePicker.SelectedItem as Cliente)?.Id ?? 0;
                     _clientes = nuevosClientes;
@@ -159,7 +159,7 @@ namespace SistemaFacturacion.Maui
                 }
 
                 var nuevasFacturas = await _apiService.GetFacturasAsync();
-                if (nuevasFacturas.Any())
+                if (nuevasFacturas != null)
                 {
                     _facturas = nuevasFacturas;
                     AplicarFiltrosFacturas();

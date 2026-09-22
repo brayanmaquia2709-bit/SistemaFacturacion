@@ -151,12 +151,18 @@ namespace SistemaFacturacion.Core.Services
             try
             {
                 var res = await _http.PostAsJsonAsync("api/Clientes", c);
-                return res.IsSuccessStatusCode ? await res.Content.ReadFromJsonAsync<Cliente>() : null;
+                if (res.IsSuccessStatusCode)
+                {
+                    return await res.Content.ReadFromJsonAsync<Cliente>();
+                }
+                var errStr = await res.Content.ReadAsStringAsync();
+                Console.WriteLine($"[API Error] HTTP {(int)res.StatusCode} al crear cliente: {errStr}");
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                Console.WriteLine($"[API Exception] Error al crear cliente: {ex.Message}");
             }
+            return null;
         }
 
         public async Task<bool> ActualizarClienteAsync(Cliente c)
@@ -203,12 +209,18 @@ namespace SistemaFacturacion.Core.Services
             try
             {
                 var res = await _http.PostAsJsonAsync("api/Productos", p);
-                return res.IsSuccessStatusCode ? await res.Content.ReadFromJsonAsync<Producto>() : null;
+                if (res.IsSuccessStatusCode)
+                {
+                    return await res.Content.ReadFromJsonAsync<Producto>();
+                }
+                var errStr = await res.Content.ReadAsStringAsync();
+                Console.WriteLine($"[API Error] HTTP {(int)res.StatusCode} al crear producto: {errStr}");
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                Console.WriteLine($"[API Exception] Error al crear producto: {ex.Message}");
             }
+            return null;
         }
 
         public async Task<bool> ActualizarProductoAsync(Producto p)

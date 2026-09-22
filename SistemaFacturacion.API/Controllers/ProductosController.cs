@@ -35,6 +35,16 @@ namespace SistemaFacturacion.API.Controllers
                 return BadRequest("El nombre del producto es obligatorio.");
             }
 
+            if (string.IsNullOrWhiteSpace(producto.CodigoBarra))
+            {
+                producto.CodigoBarra = $"PROD-{Random.Shared.Next(1000, 9999)}";
+            }
+
+            if (string.IsNullOrWhiteSpace(producto.Categoria))
+            {
+                producto.Categoria = "General";
+            }
+
             producto.Id = 0; // Forzar autoincremento en SQLite
             _db.Productos.Add(producto);
             await _db.SaveChangesAsync();
