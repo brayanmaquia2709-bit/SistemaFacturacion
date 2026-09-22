@@ -6,6 +6,13 @@ using SistemaFacturacion.Core.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuración de Puerto para Render / Producción Nube
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(renderPort))
+{
+    builder.WebHost.UseUrls($"http://*:{renderPort}");
+}
+
 // Configuración de QuestPDF (Licencia Comunitaria Gratuita)
 QuestPDF.Settings.License = LicenseType.Community;
 

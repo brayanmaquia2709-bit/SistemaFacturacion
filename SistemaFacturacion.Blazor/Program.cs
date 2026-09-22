@@ -2,11 +2,23 @@ using SistemaFacturacion.Blazor.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuración de Puerto para Render
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(renderPort))
+{
+    builder.WebHost.UseUrls($"http://*:{renderPort}");
+}
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5145/";
+var apiBaseUrl = Environment.GetEnvironmentVariable("API_BASE_URL") 
+    ?? builder.Configuration["ApiBaseUrl"] 
+    ?? "http://localhost:5145/";
+
+if (!apiBaseUrl.EndsWith("/")) apiBaseUrl += "/";
+
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 builder.Services.AddScoped<SistemaFacturacion.Blazor.Services.FacturacionApiService>();
 

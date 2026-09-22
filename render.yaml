@@ -1,0 +1,23 @@
+services:
+  # 1. Servicio Backend API + Base de Datos SQLite / EF Core
+  - type: web
+    name: sistemafacturacion-api
+    env: docker
+    dockerfilePath: ./Dockerfile.api
+    plan: free
+    region: oregon
+    healthCheckPath: /api/Productos
+
+  # 2. Servicio Frontend Web App POS (Blazor)
+  - type: web
+    name: sistemafacturacion-web
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: API_BASE_URL
+        fromService:
+          type: web
+          name: sistemafacturacion-api
+          property: host
