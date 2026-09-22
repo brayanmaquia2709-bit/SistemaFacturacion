@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SistemaFacturacion.Core\SistemaFacturacion.Core.csproj" />
+    <ProjectReference Include="..\SistemaFacturacion.API\SistemaFacturacion.API.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
