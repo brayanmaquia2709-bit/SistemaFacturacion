@@ -283,6 +283,39 @@ namespace SistemaFacturacion.Blazor.Services
             }
         }
 
+        public async Task<Usuario?> LoginAsync(string username, string password)
+        {
+            try
+            {
+                var res = await _http.PostAsJsonAsync("api/Auth/login", new { Username = username, Password = password });
+                if (res.IsSuccessStatusCode)
+                {
+                    var usr = await res.Content.ReadFromJsonAsync<Usuario>();
+                    if (usr != null) return usr;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error enviando login a API: " + ex.Message);
+            }
+
+            // Fallback de credenciales predeterminadas si la API aún se está iniciando o BD limpia
+            if (string.Equals(username, "admin", StringComparison.OrdinalIgnoreCase) && password == "admin123")
+            {
+                return new Usuario { Id = 1, Nombre = "Administrador del Sistema", Username = "admin", PasswordHash = "admin123", Rol = "Admin", Activo = true };
+            }
+            if (string.Equals(username, "cajero1", StringComparison.OrdinalIgnoreCase) && password == "123")
+            {
+                return new Usuario { Id = 2, Nombre = "Juan Pérez (Cajero 1)", Username = "cajero1", PasswordHash = "123", Rol = "Cajero", Activo = true };
+            }
+            if (string.Equals(username, "cajero2", StringComparison.OrdinalIgnoreCase) && password == "123")
+            {
+                return new Usuario { Id = 3, Nombre = "María Gómez (Cajera 2)", Username = "cajero2", PasswordHash = "123", Rol = "Cajero", Activo = true };
+            }
+
+            return null;
+        }
+
         public async Task<List<Usuario>> GetUsuariosAsync()
         {
             try

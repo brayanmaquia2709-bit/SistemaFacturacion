@@ -1064,8 +1064,8 @@
             return;
         }
 
-        var usr = usuarios.FirstOrDefault(u => u.Username.Equals(loginUsuario, StringComparison.OrdinalIgnoreCase));
-        if (usr != null && usr.PasswordHash == loginPassword)
+        var usr = await ApiService.LoginAsync(loginUsuario, loginPassword);
+        if (usr != null)
         {
             usuarioLogueado = usr;
             mostrarModalLogin = false;
