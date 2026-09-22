@@ -1,10 +1,10 @@
 # Dockerfile de Producción para SistemaFacturacion.Blazor & API en Render
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.9-noble AS base
 WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401-noble AS build
 WORKDIR /src
 COPY ["SistemaFacturacion.Blazor/SistemaFacturacion.Blazor.csproj", "SistemaFacturacion.Blazor/"]
 COPY ["SistemaFacturacion.API/SistemaFacturacion.API.csproj", "SistemaFacturacion.API/"]
