@@ -48,9 +48,11 @@ builder.Services.AddCors(options =>
     });
 });
 
+var defaultLocalApi = !string.IsNullOrEmpty(renderPort) ? $"http://127.0.0.1:{renderPort}/" : "http://localhost:5145/";
+
 var apiBaseUrl = Environment.GetEnvironmentVariable("API_BASE_URL") 
-    ?? builder.Configuration["ApiBaseUrl"] 
-    ?? "http://localhost:5145/";
+    ?? (!string.IsNullOrEmpty(renderPort) ? defaultLocalApi : builder.Configuration["ApiBaseUrl"])
+    ?? defaultLocalApi;
 
 if (!apiBaseUrl.EndsWith("/")) apiBaseUrl += "/";
 
@@ -124,7 +126,10 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseWhen(context => !context.Request.Path.StartsWithSegments("/api"), appBuilder =>
+{
+    appBuilder.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+});
 app.UseCors("AllowAll");
 
 app.UseAntiforgery();
