@@ -12,8 +12,16 @@ namespace SistemaFacturacion.Maui.Services
 
         public static string GetConfiguredBaseUrl()
         {
-            string defaultUrl = Microsoft.Maui.Devices.DeviceInfo.Platform == Microsoft.Maui.Devices.DevicePlatform.Android ? "http://10.0.2.2:5145/" : "http://localhost:5145/";
-            string savedUrl = Preferences.Get("ServerApiUrl", defaultUrl);
+            bool isAndroid = Microsoft.Maui.Devices.DeviceInfo.Platform == Microsoft.Maui.Devices.DevicePlatform.Android;
+            string defaultUrl = isAndroid ? "http://10.0.2.2:5145/" : "http://localhost:5145/";
+            string savedUrl = Preferences.Get("ServerApiUrl", "");
+
+            if (string.IsNullOrWhiteSpace(savedUrl) || (isAndroid && savedUrl.Contains("localhost")))
+            {
+                savedUrl = defaultUrl;
+                Preferences.Set("ServerApiUrl", savedUrl);
+            }
+
             if (!savedUrl.EndsWith("/")) savedUrl += "/";
             if (!savedUrl.StartsWith("http://") && !savedUrl.StartsWith("https://")) savedUrl = "http://" + savedUrl;
             return savedUrl;

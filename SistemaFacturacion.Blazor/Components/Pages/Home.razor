@@ -5,6 +5,7 @@
 @using SistemaFacturacion.Blazor.Services
 @inject FacturacionApiService ApiService
 @inject IJSRuntime JS
+@inject NavigationManager NavManager
 @implements IDisposable
 
 <PageTitle>Sistema de Facturación & POS Empresarial (COP)</PageTitle>
@@ -1027,13 +1028,15 @@
 
     private void AbrirFacturaPdf(Factura fac)
     {
-        var url = $"http://localhost:5145/api/Facturas/{fac.Id}/pdf";
+        var host = new Uri(NavManager.BaseUri).Host;
+        var url = $"http://{host}:5145/api/Facturas/{fac.Id}/pdf";
         JS.InvokeVoidAsync("open", url, "_blank");
     }
 
     private void AbrirFacturaTicket(Factura fac)
     {
-        var url = $"http://localhost:5145/api/Facturas/{fac.Id}/ticket";
+        var host = new Uri(NavManager.BaseUri).Host;
+        var url = $"http://{host}:5145/api/Facturas/{fac.Id}/ticket";
         JS.InvokeVoidAsync("open", url, "_blank");
     }
 
