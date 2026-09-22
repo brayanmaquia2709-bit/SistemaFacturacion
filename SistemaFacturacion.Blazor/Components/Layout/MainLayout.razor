@@ -1,40 +1,132 @@
 @inherits LayoutComponentBase
+@inject SistemaFacturacion.Blazor.Services.UserSessionService SessionService
+@inject SistemaFacturacion.Blazor.Services.FacturacionApiService ApiService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@implements IDisposable
 
 <div class="maui-app-container d-flex flex-row vh-100 overflow-hidden" style="background-color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
     <!-- BARRA LATERAL ESTILO MAUI (#0F172A) -->
     <div class="maui-sidebar d-flex flex-column align-items-center py-3 px-2 text-white shadow" style="width: 70px; background-color: #0F172A; min-height: 100vh; z-index: 100;">
         <!-- Logo -->
-        <button class="btn btn-emerald rounded-3 p-0 mb-3 d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 42px; height: 42px; background-color: #10B981; color: white; border: none; font-size: 1.2rem;" title="Sistema de Facturación POS">
+        <a href="/" class="btn btn-emerald rounded-3 p-0 mb-3 d-flex align-items-center justify-content-center fw-bold shadow-sm text-decoration-none" style="width: 42px; height: 42px; background-color: #10B981; color: white; border: none; font-size: 1.2rem;" title="Sistema de Facturación POS">
             ⚡
-        </button>
+        </a>
         <hr class="w-100 my-2" style="border-color: #1E293B;" />
 
-        <!-- Iconos de Navegación Vertical -->
-        <div class="d-flex flex-column gap-2 align-items-center w-100">
-            <a href="/" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center text-white" style="width: 40px; height: 40px; background-color: #10B981;" title="Punto de Venta POS & Dashboard">
-                🛒
-            </a>
-            <a href="/productos" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Gestión de Inventario">
-                📦
-            </a>
-            <a href="/clientes" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Directorio de Clientes">
-                👥
-            </a>
-            <a href="/facturas" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Historial de Facturación">
-                📜
-            </a>
-            <a href="/caja" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Control de Caja">
-                💵
-            </a>
-            <a href="/vendedores" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #10B981;" title="Gestión de Cajeros & Usuarios">
-                🛡️
-            </a>
+        <!-- Iconos de Navegación Vertical (Protegidos) -->
+        <div class="d-flex flex-column gap-2 align-items-center w-100 flex-grow-1">
+            @if (SessionService.IsLoggedIn)
+            {
+                <a href="/" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center text-white" style="width: 40px; height: 40px; background-color: #10B981;" title="Punto de Venta POS & Dashboard">
+                    🛒
+                </a>
+                <a href="/productos" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Gestión de Inventario">
+                    📦
+                </a>
+                <a href="/clientes" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Directorio de Clientes">
+                    👥
+                </a>
+                <a href="/facturas" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Historial de Facturación">
+                    📜
+                </a>
+                <a href="/caja" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #94A3B8;" title="Control de Caja">
+                    💵
+                </a>
+                @if (SessionService.IsAdmin)
+                {
+                    <a href="/vendedores" class="btn rounded-3 p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: #1E293B; color: #10B981;" title="Gestión de Cajeros & Usuarios">
+                        🛡️
+                    </a>
+                }
+            }
+            else
+            {
+                <button class="btn rounded-3 p-0 d-flex align-items-center justify-content-center opacity-50" style="width: 40px; height: 40px; background-color: #1E293B; color: #64748B; cursor: not-allowed;" title="Sesión requerida" disabled>
+                    🔒
+                </button>
+            }
         </div>
+
+        <!-- Botón de Usuario / Cerrar Sesión en la barra lateral -->
+        @if (SessionService.IsLoggedIn)
+        {
+            <div class="d-flex flex-column align-items-center mt-auto w-100 gap-2 pb-2">
+                <div class="badge text-wrap small p-1 text-center text-white" style="font-size: 0.65rem; max-width: 65px; background-color: #10B981; overflow: hidden; text-overflow: ellipsis;" title="@SessionService.UsuarioActual?.Nombre">
+                    👤 @SessionService.UsuarioActual?.Username
+                </div>
+                <button class="btn btn-outline-danger btn-sm p-0 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;" title="Cerrar Sesión" @onclick="CerrarSesionGlobal">
+                    🚪
+                </button>
+            </div>
+        }
     </div>
 
     <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-grow-1 h-100 overflow-auto p-3" style="background-color: #CBD5E1;">
-        @Body
+        @if (!SessionService.IsLoaded)
+        {
+            <div class="d-flex align-items-center justify-content-center h-100">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Cargando sesión...</span>
+                </div>
+            </div>
+        }
+        else if (!SessionService.IsLoggedIn)
+        {
+            <!-- PANTALLA GLOBAL DE SESIÓN REQUERIDA / LOGIN -->
+            <div class="d-flex align-items-center justify-content-center h-100" style="background-color: #CBD5E1;">
+                <div class="card border-0 shadow-lg p-4 text-white" style="max-width: 440px; width: 100%; background-color: #0F172A; border-radius: 16px;">
+                    <div class="text-center mb-4">
+                        <div class="p-3 text-white rounded-circle d-inline-block mb-3 shadow d-flex align-items-center justify-content-center mx-auto" style="background-color: #10B981; width: 64px; height: 64px; font-size: 1.8rem;">
+                            🔒
+                        </div>
+                        <h3 class="fw-bold text-white mb-1">Sesión Requerida</h3>
+                        <p class="small" style="color: #94A3B8;">
+                            El sistema de facturación y POS requiere autenticación. Ingrese su usuario y contraseña para continuar.
+                        </p>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(loginError))
+                    {
+                        <div class="alert alert-danger py-2 small rounded-3 mb-3 border-0" style="background-color: #EF4444; color: white;">
+                            ⚠️ @loginError
+                        </div>
+                    }
+
+                    <EditForm Model="this" OnValidSubmit="EjecutarLoginGlobal">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold" style="color: #CBD5E1;">Usuario</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white rounded-3 py-2" @bind="loginUsuario" placeholder="admin / cajero1" required />
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold" style="color: #CBD5E1;">Contraseña</label>
+                            <input type="password" class="form-control bg-dark border-secondary text-white rounded-3 py-2" @bind="loginPassword" placeholder="••••••••" required />
+                        </div>
+
+                        <button type="submit" class="btn w-100 py-2.5 fw-bold text-white shadow rounded-3 border-0 d-flex align-items-center justify-content-center gap-2" style="background-color: #10B981;" disabled="@procesandoLogin">
+                            @if (procesandoLogin)
+                            {
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                                <span>Verificando...</span>
+                            }
+                            else
+                            {
+                                <span>🔑 Iniciar Sesión en el Sistema</span>
+                            }
+                        </button>
+                    </EditForm>
+
+                    <div class="text-center mt-4 pt-3 border-top border-secondary" style="border-color: #1E293B !important;">
+                        <small style="color: #64748B;">Acceso rápido sugerido: <code>admin / admin123</code> o <code>cajero1 / 123</code></small>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            @Body
+        }
     </main>
 </div>
 
@@ -43,3 +135,74 @@
     <a href="." class="reload">Recargar</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private string loginUsuario = "";
+    private string loginPassword = "";
+    private string loginError = "";
+    private bool procesandoLogin = false;
+
+    protected override void OnInitialized()
+    {
+        SessionService.OnChange += OnSessionChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !SessionService.IsLoaded)
+        {
+            await SessionService.RestoreUserAsync(JS);
+        }
+    }
+
+    private void OnSessionChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task EjecutarLoginGlobal()
+    {
+        if (string.IsNullOrWhiteSpace(loginUsuario) || string.IsNullOrWhiteSpace(loginPassword))
+        {
+            loginError = "Por favor ingrese usuario y contraseña.";
+            return;
+        }
+
+        procesandoLogin = true;
+        loginError = "";
+
+        try
+        {
+            var usr = await ApiService.LoginAsync(loginUsuario, loginPassword);
+            if (usr != null)
+            {
+                await SessionService.SetUserAsync(usr, JS);
+                loginUsuario = "";
+                loginPassword = "";
+            }
+            else
+            {
+                loginError = "Credenciales incorrectas.";
+            }
+        }
+        catch (Exception ex)
+        {
+            loginError = "Error de conexión: " + ex.Message;
+        }
+        finally
+        {
+            procesandoLogin = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CerrarSesionGlobal()
+    {
+        await SessionService.LogoutAsync(JS, Navigation);
+    }
+
+    public void Dispose()
+    {
+        SessionService.OnChange -= OnSessionChanged;
+    }
+}

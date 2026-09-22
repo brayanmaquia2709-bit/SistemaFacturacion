@@ -58,6 +58,7 @@ if (!apiBaseUrl.EndsWith("/")) apiBaseUrl += "/";
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 builder.Services.AddScoped<SistemaFacturacion.Blazor.Services.FacturacionApiService>();
+builder.Services.AddScoped<SistemaFacturacion.Blazor.Services.UserSessionService>();
 
 var app = builder.Build();
 

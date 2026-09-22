@@ -4,6 +4,7 @@
 @using SistemaFacturacion.Core.Entities
 @using SistemaFacturacion.Blazor.Services
 @inject FacturacionApiService ApiService
+@inject UserSessionService SessionService
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 @implements IDisposable
@@ -770,10 +771,8 @@
     private int saludInventarioPct = 100;
     private DateTime? filtroFechaFactura;
 
-    private Usuario? usuarioLogueado;
-    private bool esAdmin => usuarioLogueado != null &&
-        (usuarioLogueado.Rol.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
-         usuarioLogueado.Rol.Equals("Administrador", StringComparison.OrdinalIgnoreCase));
+    private Usuario? usuarioLogueado => SessionService.UsuarioActual;
+    private bool esAdmin => SessionService.IsAdmin;
 
     private bool mostrarModalLogin = false;
     private string loginUsuario = "";
@@ -1070,7 +1069,7 @@
         var usr = await ApiService.LoginAsync(loginUsuario, loginPassword);
         if (usr != null)
         {
-            usuarioLogueado = usr;
+            await SessionService.SetUserAsync(usr, JS);
             mostrarModalLogin = false;
 
             if (esAdmin)
@@ -1088,9 +1087,9 @@
         }
     }
 
-    private void CerrarSesion()
+    private async Task CerrarSesion()
     {
-        usuarioLogueado = null;
+        await SessionService.LogoutAsync(JS, NavManager);
         activeTab = "cajero";
     }
 
